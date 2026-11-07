@@ -143,7 +143,7 @@ export class MapScene extends Phaser.Scene {
     }
 
     // Flower patches: clusters of tiny blooms in each garden's own kinds.
-    const zoneFlowers = [['rose', 'sun', 'berry', 'crystal'], ['strawberry', 'carrot', 'mushroom', 'sun']];
+    const zoneFlowers = [['rose', 'sun', 'berry', 'crystal'], ['strawberry', 'carrot', 'mushroom', 'sun'], ['apple', 'lemon', 'grape', 'kiwi']];
     for (let i = 0; i < Math.floor(this.worldH / 120); i += 1) {
       const cx = rng.between(30, W - 30);
       const cy = rng.between(skyH + 220, this.worldH - 40);
