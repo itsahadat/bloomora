@@ -46,7 +46,7 @@ Promise.race([fontsReady, new Promise((resolve) => setTimeout(resolve, 1500))])
   });
 
 // Installable + offline play (production builds only, so dev reloads are never served stale).
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && import.meta.env.VITE_TARGET !== 'itch' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
