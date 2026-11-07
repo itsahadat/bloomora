@@ -44,3 +44,10 @@ Promise.race([fontsReady, new Promise((resolve) => setTimeout(resolve, 1500))])
     // Dev-only handle for debugging from the browser console.
     if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('debug')) window.__bloomora = game;
   });
+
+// Installable + offline play (production builds only, so dev reloads are never served stale).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}

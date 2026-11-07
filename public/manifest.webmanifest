@@ -1,0 +1,16 @@
+{
+  "name": "Bloomora — Garden Match",
+  "short_name": "Bloomora",
+  "description": "A cozy garden match-3 puzzle: swap blooms and fruits, water thirsty pots and grow your garden.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#bfe8fa",
+  "theme_color": "#3fae4f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
