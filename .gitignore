@@ -25,3 +25,6 @@ dist-ssr
 
 # Raw Kenney downloads (the files the game uses are copied into public/assets/kenney)
 Kenney/
+
+# Local Claude Code settings
+.claude/
