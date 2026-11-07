@@ -1,6 +1,17 @@
 import Phaser from 'phaser';
-import { Board, goalIconKey } from '../board/Board.js';
+import { Board, goalIconKey, countLayout } from '../board/Board.js';
 import { LEVELS, resolveObjective } from '../levels/LevelData.js';
+import { Seen } from '../core/Seen.js';
+
+/** Obstacles that get a one-time "New!" card, in the order they're explained. */
+const FEATURES = {
+  soil: { icon: 'cell-soil1', name: 'Dry Soil', text: 'Match blooms sitting on dry soil to grow fresh grass. Dark soil needs two matches.' },
+  crate: { icon: 'ob-crate1', name: 'Planter Box', text: 'Match right next to a box to break it. Boxes with metal bands take two hits.' },
+  vine: { icon: 'ob-vine', name: 'Vines', text: 'A vine holds its bloom in place. Match that bloom to cut the vine free.' },
+  seed: { icon: 'item-seed', name: 'Seeds', text: 'Clear the blooms below a seed to bring it down to the bottom of the garden.' },
+  weed: { icon: 'ob-weed', name: 'Thorny Weed', text: 'Clear a weed every turn, or it spreads to a neighbouring tile!' },
+  pot: { icon: 'ob-pot', name: 'Thirsty Pot', text: 'Match next to a pot to water it. Its own bloom kind waters double!' },
+};
 import { Progress } from '../core/Progress.js';
 import {
   textStyle, titleStyle, makeButton, makeRoundButton, addGardenBackground, showModal, makeBoosterButton, boosterIcon,
@@ -76,7 +87,17 @@ export class GameScene extends Phaser.Scene {
       .then(() => this.maybeShowTutorial());
     playSfx(this, 'start');
     playMusic();
-    this.showIntro();
+    // First time a level brings a new obstacle, explain it before play starts.
+    const fresh = this.newFeatures();
+    if (fresh.length) {
+      this.board.locked = true;
+      this.time.delayedCall(450, () => this.showFeatureCard(fresh, () => {
+        this.board.locked = false;
+        this.showIntro();
+      }));
+    } else {
+      this.showIntro();
+    }
   }
 
   // ---------------------------------------------------------------- HUD
@@ -637,6 +658,41 @@ export class GameScene extends Phaser.Scene {
     }).setDepth(90);
     this.time.delayedCall(1800, () => confetti.stop());
     this.time.delayedCall(5500, () => confetti.destroy());
+  }
+
+  // ---------------------------------------------------------------- new obstacle cards
+
+  /** Obstacles in this level the player hasn't been introduced to yet. */
+  newFeatures() {
+    const counts = countLayout(this.level.layout);
+    if (this.level.objective.seed) counts.seed = this.level.objective.seed;
+    return Object.keys(FEATURES).filter((f) => counts[f] > 0 && !Seen.has(f));
+  }
+
+  showFeatureCard(features, onDone) {
+    const rowH = 132;
+    const modal = showModal(this, { title: 'New!', color: 'green', width: 380, height: 150 + features.length * rowH });
+    const { panel, top, width } = modal;
+    features.forEach((f, i) => {
+      const info = FEATURES[f];
+      const y = top + 14 + i * rowH + rowH / 2;
+      panel.add(this.add.image(0, y, insetTexture(this, width - 50, rowH - 12)));
+      const icon = this.add.image(-width / 2 + 74, y, info.icon).setDisplaySize(78, 78);
+      panel.add(icon);
+      this.tweens.add({ targets: icon, scale: icon.scale * 1.08, angle: { from: -4, to: 4 }, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      const tx = -width / 2 + 128;
+      panel.add(this.add.text(tx, y - 34, info.name, textStyle(23, COLORS.title, { stroke: '#ffffff', strokeThickness: 4 })).setOrigin(0, 0.5));
+      panel.add(this.add.text(tx, y + 12, info.text, textStyle(15, COLORS.text, { wordWrap: { width: width - 170 } })).setOrigin(0, 0.5));
+    });
+    panel.add(makeButton(this, {
+      x: 0, y: modal.height / 2 - 52, width: 200, height: 58, label: 'Got it!', color: 'green', fontSize: 25,
+      onClick: () => {
+        Seen.mark(features);
+        modal.close();
+        onDone();
+      },
+    }));
+    playSfx(this, 'sparkle');
   }
 
   // ---------------------------------------------------------------- tutorial
