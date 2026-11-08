@@ -28,6 +28,7 @@ const TROPIC_6 = ['banana', 'watermelon', 'kiwi', 'orange', 'grape', 'drop'];
  *   1-9 thirsty pot wanting rose / leaf / drop / sun / berry / crystal / carrot / strawberry / apple
  *       (`potNeed` sets how many blooms each pot needs, default 4)
  * Objective value 'all' means "every one in the layout".
+ * `difficulty: 'hard' | 'super'` marks a tougher level on the map and in its intro.
  */
 export const LEVELS = [
   {
@@ -246,6 +247,7 @@ export const LEVELS = [
     id: 13,
     name: 'Seedling Slope',
     moves: 26,
+    difficulty: 'hard',
     types: MIX_C,
     objective: { seed: 2 },
     tip: 'Bring the seeds down to the bottom of the garden!',
@@ -362,6 +364,7 @@ export const LEVELS = [
     id: 20,
     name: "Gardener's Rest",
     moves: 32,
+    difficulty: 'hard',
     types: FARM,
     tip: 'Fresh from the veggie patch: strawberries, lemons, kiwis, blueberries and carrots!',
     objective: { seed: 2, soil: 'all' },
@@ -415,6 +418,7 @@ export const LEVELS = [
     id: 23,
     name: 'Rainbow Ridge',
     moves: 28,
+    difficulty: 'hard',
     types: SIX,
     potNeed: 6,
     objective: { crystal: 16, pot: 'all' },
@@ -451,6 +455,7 @@ export const LEVELS = [
     id: 25,
     name: 'Seed Vault',
     moves: 30,
+    difficulty: 'super',
     types: FARM,
     objective: { seed: 3, vine: 'all' },
     layout: [
@@ -522,6 +527,7 @@ export const LEVELS = [
     id: 29,
     name: 'Moonflower Maze',
     moves: 34,
+    difficulty: 'hard',
     types: FARM,
     potNeed: 6,
     objective: { seed: 2, pot: 'all', crate: 'all' },
@@ -638,6 +644,7 @@ export const LEVELS = [
     id: 36,
     name: 'Seed Basket',
     moves: 30,
+    difficulty: 'super',
     types: MIX_C,
     objective: { seed: 3, crate: 'all' },
     layout: [
@@ -691,6 +698,7 @@ export const LEVELS = [
     id: 39,
     name: 'Golden Harvest',
     moves: 28,
+    difficulty: 'hard',
     types: FARM,
     potNeed: 5,
     objective: { seed: 2, pot: 'all', crate: 'all' },
@@ -808,6 +816,7 @@ export const LEVELS = [
     id: 46,
     name: 'Banana Drop',
     moves: 26,
+    difficulty: 'hard',
     types: TROPIC_B,
     objective: { seed: 2, crate: 'all' },
     tip: 'Bring the seeds down to the bottom row!',

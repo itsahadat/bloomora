@@ -16,6 +16,8 @@ import { Daily } from '../core/Daily.js';
 import { Seen } from '../core/Seen.js';
 import { BOOSTER_STORAGE_KEY } from '../core/Inventory.js';
 import { Wheel } from '../core/Wheel.js';
+import { Streak } from '../core/Streak.js';
+import { Quests } from '../core/Quests.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -111,7 +113,7 @@ export class MenuScene extends Phaser.Scene {
     panel.add(makeButton(this, {
       x: -72, y: top + 132, width: 126, height: 48, label: 'Reset', color: 'red', fontSize: 20,
       onClick: () => {
-        ['bloomora.progress.v1', 'bloomora.lives.v1', BOOSTER_STORAGE_KEY, Wallet.STORAGE_KEY, Daily.STORAGE_KEY, Seen.STORAGE_KEY, Wheel.STORAGE_KEY].forEach((k) => {
+        ['bloomora.progress.v1', 'bloomora.lives.v1', BOOSTER_STORAGE_KEY, Wallet.STORAGE_KEY, Daily.STORAGE_KEY, Seen.STORAGE_KEY, Wheel.STORAGE_KEY, Streak.STORAGE_KEY, Quests.STORAGE_KEY].forEach((k) => {
           try {
             window.localStorage.removeItem(k);
           } catch {

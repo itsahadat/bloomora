@@ -428,7 +428,7 @@ export function ensureUiTextures(scene) {
 }
 
 const TITLE_COLORS = {
-  green: COLORS.title, yellow: COLORS.title, blue: '#2e7fd0', red: '#d0453a',
+  green: COLORS.title, yellow: COLORS.title, blue: '#2e7fd0', red: '#d0453a', purple: '#8a3fd8',
 };
 
 /**
@@ -557,7 +557,7 @@ let activeTip = null;
  * Small speech-bubble tooltip pointing at (x, y) in screen space. Only one shows at a time;
  * it closes on the next tap or after a few seconds.
  */
-export function showTooltip(scene, x, y, title, body, { below = false, depth = 300 } = {}) {
+export function showTooltip(scene, x, y, title, body, { below = false, depth = 300, duration = 3200 } = {}) {
   if (activeTip?.active) activeTip.destroy();
   const W = scene.scale.width;
   const w = Math.min(250, W - 24);
@@ -584,9 +584,10 @@ export function showTooltip(scene, x, y, title, body, { below = false, depth = 3
     if (!tip.active) return;
     scene.tweens.add({ targets: tip, alpha: 0, scale: 0.85, duration: 140, onComplete: () => tip.destroy() });
   };
-  const timer = scene.time.delayedCall(3200, close);
+  const timer = duration > 0 ? scene.time.delayedCall(duration, close) : null;
   scene.time.delayedCall(120, () => scene.input.once('pointerdown', close));
-  tip.once('destroy', () => timer.remove());
+  tip.once('destroy', () => timer?.remove());
+  tip.close = close;
   activeTip = tip;
   return tip;
 }

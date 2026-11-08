@@ -24,6 +24,8 @@ import { isMuted, setMuted, isMusicMuted, setMusicMuted } from '../core/Sound.js
 import { Inventory, BOOSTERS } from '../core/Inventory.js';
 import { playSfx, playMusic } from '../core/Sound.js';
 import { Lives } from '../core/Lives.js';
+import { Streak } from '../core/Streak.js';
+import { Quests } from '../core/Quests.js';
 import { Wallet } from '../core/Wallet.js';
 import { openBuyBooster, openNoLives } from '../ui/Shop.js';
 
@@ -33,6 +35,19 @@ const PAD = 12;
 const CARD_H = 104;
 const BOOSTER_BAR = 92;
 const COMBO_WORDS = ['', '', 'Sweet!', 'Lovely!', 'Blooming!', 'Gorgeous!', 'Garden Glory!'];
+
+/** Captions for the first-levels tutorial hand. */
+const TUTORIAL_STEPS = [
+  ['Swipe to swap!', 'Slide a fruit into its neighbour to line up 3 of a kind.'],
+  ['Make 4 in a row', 'Matching 4 makes a line bloom that clears a whole row!'],
+  ['Grow the garden', 'Match on the brown soil to turn it into fresh grass.'],
+];
+
+/** How each difficulty shows up in the level intro. */
+const DIFFICULTY = {
+  hard: { label: 'Hard Level!', color: '#d0453a' },
+  super: { label: 'Super Hard Level!', color: '#8a3fd8' },
+};
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -52,6 +67,9 @@ export class GameScene extends Phaser.Scene {
     this.starScores = [this.level.moves * 100, this.level.moves * 200, this.level.moves * 290];
     this.starsLit = 0;
     this.ended = false;
+    // Win streak gifts for this attempt, and quest progress waiting to be saved.
+    this.streakGifts = Streak.gifts();
+    this.tally = {};
   }
 
   create() {
@@ -72,6 +90,7 @@ export class GameScene extends Phaser.Scene {
         boosterUsed: (kind) => this.onBoosterUsed(kind),
         weedSpread: () => this.onWeedSpread(),
         score: (points, pos) => this.addScore(points, pos),
+        special: () => this.tallyAdd('special'),
       },
     });
 
@@ -83,7 +102,7 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
 
     this.board.start()
-      .then(() => this.board.applyStartBoosters(this.startBoosters))
+      .then(() => this.board.applyStartBoosters([...this.startBoosters, ...this.streakGifts.map((k) => `streak:${k}`)]))
       .then(() => this.maybeShowTutorial());
     playSfx(this, 'start');
     playMusic();
@@ -469,6 +488,7 @@ Tap to use it.`);
   }
 
   onBoosterUsed(kind) {
+    this.tallyAdd('booster');
     Inventory.use(kind);
     playSfx(this, 'sparkle');
     this.setBoosterMode(null);
@@ -491,6 +511,7 @@ Tap to use it.`);
   }
 
   collect(type, x, y) {
+    this.tallyAdd(['soil', 'crate', 'vine', 'weed'].includes(type) ? 'obstacle' : `collect:${type}`);
     if (this.remaining[type] === undefined || this.remaining[type] <= 0) return;
     this.remaining[type] -= 1;
 
@@ -526,7 +547,24 @@ Tap to use it.`);
     });
   }
 
+  tallyAdd(kind, n = 1) {
+    this.tally[kind] = (this.tally[kind] ?? 0) + n;
+  }
+
+  /** Save quest progress collected since the last turn. */
+  flushTally() {
+    Object.entries(this.tally).forEach(([kind, n]) => Quests.add(kind, n));
+    this.tally = {};
+  }
+
+  /** Giving up costs a life and breaks the win streak. */
+  giveUp() {
+    Lives.lose();
+    if (!Lives.isUnlimited()) Streak.lose();
+  }
+
   checkEnd() {
+    this.flushTally();
     if (this.ended) return;
     const won = Object.values(this.remaining).every((v) => v <= 0);
     if (won) {
@@ -555,6 +593,10 @@ Tap to use it.`);
         if (reward) Inventory.add(reward);
         const coins = Wallet.winReward(stars, firstClear);
         Wallet.add(coins);
+        Streak.win();
+        this.flushTally();
+        Quests.add('win');
+        Quests.add('stars', stars);
         return { stars, reward, coins };
       }).then(async (result) => {
         await this.showVictory();
@@ -591,8 +633,8 @@ Tap to use it.`);
         buttons.push({ label: `+3 Moves · ${CONTINUE_PRICE} coins`, color: 'green', onClick: (close) => this.continueWithMoves(close, true) });
       }
       buttons.push(
-        { label: 'Try Again', color: 'yellow', onClick: () => { Lives.lose(); this.restartLevel(); } },
-        { label: 'Map', color: 'blue', onClick: () => { Lives.lose(); this.goToMap(); } },
+        { label: 'Try Again', color: 'yellow', onClick: () => { this.giveUp(); this.restartLevel(); } },
+        { label: 'Map', color: 'blue', onClick: () => { this.giveUp(); this.goToMap(); } },
       );
       this.time.delayedCall(600, () => this.showPopup({
         title: 'Out of Moves',
@@ -649,7 +691,7 @@ Tap to use it.`);
     panel.add(makeButton(this, {
       x: -70, y: top + 136, width: 124, height: 48, label: 'Leave', color: 'red', fontSize: 20,
       onClick: () => {
-        Lives.lose();
+        this.giveUp();
         action();
       },
     }));
@@ -769,8 +811,15 @@ Tap to use it.`);
         ],
       });
       [glowA, glowB].forEach((g) => this.tweens.add({ targets: g, alpha: 0.3, duration: 500, yoyo: true, repeat: -1 }));
+      const [title, body] = TUTORIAL_STEPS[this.levelIndex];
+      // Above the pair when there's room, otherwise below it.
+      const top = Math.min(a.y, b.y) - size * 0.6;
+      const below = top < 120;
+      const anchorY = below ? Math.max(a.y, b.y) + size * 0.6 : top;
+      const caption = showTooltip(this, (a.x + b.x) / 2, anchorY, title, body, { duration: 0, depth: 45, below });
       this.input.once('pointerdown', () => {
         loop.stop();
+        caption.close();
         [hand, glowA, glowB].forEach((o) => o.destroy());
       });
     });
@@ -786,22 +835,53 @@ Tap to use it.`);
   showIntro() {
     const { x, y } = this.boardCenter();
     const banner = this.add.container(x, y).setDepth(60);
-    const w = Math.min(this.boardRect.width * 0.92, 380);
-    const h = this.level.tip ? 172 : 128;
+    const goals = Object.entries(this.remaining);
+    const diff = DIFFICULTY[this.level.difficulty];
+    const gifts = this.streakGifts.length;
+    const w = Math.min(this.boardRect.width * 0.94, 380);
+    const tipText = this.level.tip
+      ? this.add.text(0, 0, this.level.tip, textStyle(15, COLORS.text, { wordWrap: { width: w - 60 }, align: 'center' })).setOrigin(0.5)
+      : null;
+    const h = 118 + 78 + (tipText ? tipText.height + 16 : 0) + (diff ? 26 : 0) + (gifts ? 28 : 0);
     const bg = this.add.image(0, 0, panelTexture(this, w, h));
-    const title = this.add.text(0, -h / 2 + 42, `Level ${this.level.id}`, textStyle(34, COLORS.title, { stroke: '#ffffff', strokeThickness: 6 })).setOrigin(0.5);
-    const sub = this.add.text(0, -h / 2 + 78, this.level.name, textStyle(19, COLORS.soft)).setOrigin(0.5);
-    banner.add([bg, title, sub]);
-    if (this.level.tip) {
-      const tip = this.add.text(0, h / 2 - 42, this.level.tip, textStyle(15, COLORS.text, { wordWrap: { width: w - 60 }, align: 'center' })).setOrigin(0.5);
-      banner.add(tip);
+    banner.add(bg);
+    let cy = -h / 2 + 40;
+    const title = this.add.text(0, cy, `Level ${this.level.id}`, textStyle(34, diff?.color ?? COLORS.title, { stroke: '#ffffff', strokeThickness: 6 })).setOrigin(0.5);
+    cy += 36;
+    const sub = this.add.text(0, cy, this.level.name, textStyle(19, COLORS.soft)).setOrigin(0.5);
+    banner.add([title, sub]);
+    if (diff) {
+      cy += 28;
+      const tag = this.add.text(0, cy, diff.label, titleStyle(18, diff.color)).setOrigin(0.5);
+      banner.add(tag);
+      this.tweens.add({ targets: tag, scale: 1.12, duration: 380, yoyo: true, repeat: 2, ease: 'Sine.easeInOut' });
+    }
+    // Goals pop in one by one.
+    cy += 52;
+    const spacing = Math.min(78, (w - 50) / goals.length);
+    goals.forEach(([type, count], i) => {
+      const item = this.add.container((i - (goals.length - 1) / 2) * spacing, cy);
+      item.add([this.add.image(0, 0, goalIconKey(type)).setDisplaySize(50, 50), makeCountBadge(this, 20, 18, count, 28)]);
+      item.setScale(0);
+      this.tweens.add({ targets: item, scale: 1, duration: 300, delay: 260 + i * 140, ease: 'Back.easeOut' });
+      banner.add(item);
+    });
+    cy += 42;
+    if (gifts) {
+      cy += 4;
+      banner.add(this.add.text(0, cy, `Win streak x${Streak.count()}: free special${gifts > 1 ? 's' : ''}!`, textStyle(16, '#e0731a')).setOrigin(0.5));
+      cy += 24;
+    }
+    if (tipText) {
+      tipText.setY(cy + tipText.height / 2 + 4);
+      banner.add(tipText);
     }
     banner.setScale(0.6).setAlpha(0);
     this.tweens.chain({
       targets: banner,
       tweens: [
         { scale: 1, alpha: 1, duration: 320, ease: 'Back.easeOut' },
-        { scale: 0.9, alpha: 0, duration: 260, delay: this.level.tip ? 2200 : 1200, ease: 'Quad.easeIn' },
+        { scale: 0.9, alpha: 0, duration: 260, delay: (this.level.tip ? 2400 : 1500) + goals.length * 140, ease: 'Quad.easeIn' },
       ],
       onComplete: () => banner.destroy(),
     });

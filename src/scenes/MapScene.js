@@ -8,6 +8,14 @@ import { Inventory, BOOSTERS } from '../core/Inventory.js';
 import { Wallet } from '../core/Wallet.js';
 import { Daily } from '../core/Daily.js';
 import { openLuckyWheel, makeWheelButton } from '../ui/LuckyWheel.js';
+import { openQuests, makeQuestButton } from '../ui/QuestBoard.js';
+import { openZoneComplete } from '../ui/Celebration.js';
+
+/** Map look for tougher levels. */
+const DIFFICULTY = {
+  hard: { orb: 'red', text: '#861b13', tag: 'HARD', tagColor: '#d0453a' },
+  super: { orb: 'purple', text: '#552090', tag: 'SUPER HARD', tagColor: '#8a3fd8' },
+};
 import {
   makeCoinBadge, openShop, openDailyReward, openBuyBooster, openNoLives,
 } from '../ui/Shop.js';
@@ -53,7 +61,10 @@ export class MapScene extends Phaser.Scene {
     this.setupScrolling();
     playMusic();
 
-    if (Daily.canClaim()) this.time.delayedCall(450, () => this.showDaily());
+    // A finished garden gets its celebration first, then the daily gift.
+    const zone = this.pendingZone();
+    if (zone !== null) this.time.delayedCall(500, () => this.celebrateZone(zone));
+    else if (Daily.canClaim()) this.time.delayedCall(450, () => this.showDaily());
 
     if (this.restoreScroll !== undefined) {
       cam.scrollY = this.restoreScroll;
@@ -241,14 +252,19 @@ export class MapScene extends Phaser.Scene {
       const locked = i > this.unlocked;
 
       const node = this.add.container(pos.x, pos.y);
-      const color = locked ? 'grey' : current ? 'yellow' : 'green';
+      const diff = DIFFICULTY[level.difficulty];
+      const color = locked ? 'grey' : diff ? diff.orb : current ? 'yellow' : 'green';
       const bg = this.add.image(0, 0, orbTexture(this, current ? 84 : 74, color));
       node.add(bg);
+      if (diff) {
+        const tag = this.add.text(0, -50, diff.tag, titleStyle(13, diff.tagColor)).setOrigin(0.5);
+        node.add(tag);
+      }
 
       if (locked) {
         node.add(this.add.image(0, -2, 'ui-lock').setDisplaySize(34, 34));
       } else {
-        node.add(this.add.text(0, -3, `${level.id}`, titleStyle(current ? 34 : 30, current ? '#a24f00' : '#21650f')).setOrigin(0.5));
+        node.add(this.add.text(0, -3, `${level.id}`, titleStyle(current ? 34 : 30, diff ? diff.text : current ? '#a24f00' : '#21650f')).setOrigin(0.5));
       }
       if (done) addStars(this, node, { x: 0, y: 48, size: 24, gap: 0, earned: stars, raiseMiddle: -6 });
 
@@ -278,7 +294,8 @@ export class MapScene extends Phaser.Scene {
 
   openLevelCard(index) {
     const level = LEVELS[index];
-    const modal = showModal(this, { title: `Level ${level.id}`, color: 'yellow', width: 380, height: 500 });
+    const diff = DIFFICULTY[level.difficulty];
+    const modal = showModal(this, { title: diff ? `Level ${level.id} · ${diff.tag === 'HARD' ? 'Hard' : 'Super Hard'}` : `Level ${level.id}`, color: diff ? diff.orb : 'yellow', width: 380, height: 500 });
     const { panel, top, width: panelW } = modal;
 
     panel.add(this.add.text(0, top + 12, `${level.name}  ·  ${level.moves} moves`, textStyle(18, COLORS.soft)).setOrigin(0.5));
@@ -344,6 +361,35 @@ export class MapScene extends Phaser.Scene {
     openNoLives(this, { onLives: () => this.livesBadge.refresh(), onClose: () => this.livesBadge.refresh() });
   }
 
+  /** Highest finished garden whose celebration hasn't been shown (older ones are marked silently). */
+  pendingZone() {
+    let pending = null;
+    ZONES.forEach((zone, zi) => {
+      const last = (ZONES[zi + 1]?.start ?? LEVELS.length) - 1;
+      if (Progress.starsFor(last) > 0 && !Progress.isCelebrated(zi)) {
+        if (pending !== null) Progress.markCelebrated(pending);
+        pending = zi;
+      }
+    });
+    return pending;
+  }
+
+  celebrateZone(zi) {
+    openZoneComplete(this, {
+      zoneName: ZONES[zi].name,
+      nextName: ZONES[zi + 1]?.name,
+      coinTarget: () => {
+        const m = this.coinBadge.coin.getWorldTransformMatrix();
+        return { x: m.tx, y: m.ty };
+      },
+      // Marked only once the reward is claimed, so an interrupted popup shows again.
+      onClose: () => {
+        Progress.markCelebrated(zi);
+        if (Daily.canClaim()) this.time.delayedCall(700, () => this.showDaily());
+      },
+    });
+  }
+
   showDaily() {
     openDailyReward(this, {
       coinTarget: () => {
@@ -394,6 +440,19 @@ export class MapScene extends Phaser.Scene {
       x: SW - 46, y: SH - 54, size: 70,
       canTap: () => this.dragDistance <= 12,
       onClick: () => this.showWheel(),
+    }).setScrollFactor(0, 0, true).setDepth(50);
+
+    // Weekly quests (bottom-left).
+    this.questButton = makeQuestButton(this, {
+      x: 46, y: SH - 60, size: 62,
+      canTap: () => this.dragDistance <= 12,
+      onClick: () => openQuests(this, {
+        coinTarget: () => {
+          const m = this.coinBadge.coin.getWorldTransformMatrix();
+          return { x: m.tx, y: m.ty };
+        },
+        onClose: () => this.questButton.refresh(),
+      }),
     }).setScrollFactor(0, 0, true).setDepth(50);
   }
 

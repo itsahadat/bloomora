@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'bloomora.progress.v1';
 
 function defaults() {
-  return { unlocked: 0, stars: {} };
+  return { unlocked: 0, stars: {}, celebrated: [] };
 }
 
 let cache = null;
@@ -43,5 +43,16 @@ export const Progress = {
     data.unlocked = Math.max(data.unlocked, index + 1);
     save();
     return stars > before;
+  },
+
+  /** Garden (zone) completion celebrations already shown. */
+  isCelebrated(zone) {
+    return (load().celebrated ?? []).includes(zone);
+  },
+
+  markCelebrated(zone) {
+    const data = load();
+    data.celebrated = [...new Set([...(data.celebrated ?? []), zone])];
+    save();
   },
 };

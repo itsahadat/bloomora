@@ -82,6 +82,7 @@ export class Board {
       boosterUsed: () => {},
       weedSpread: () => {},
       score: () => {},
+      special: () => {},
       ...options.callbacks,
     };
 
@@ -879,6 +880,11 @@ export class Board {
     const specials = [];
     if (kinds.includes('rainbow')) specials.push('rainbow');
     if (kinds.includes('burst')) specials.push('bomb', Phaser.Utils.Array.GetRandom(['lineH', 'lineV']));
+    // Win-streak gifts ('line', 'bomb', 'rainbow') come in as `streak:<special>`.
+    kinds.filter((k) => k.startsWith('streak:')).forEach((k) => {
+      const kind = k.slice(7);
+      specials.push(kind === 'line' ? Phaser.Utils.Array.GetRandom(['lineH', 'lineV']) : kind);
+    });
     if (!specials.length) return;
 
     this.busy = true;
@@ -1005,6 +1011,7 @@ export class Board {
       const spawnKey = special ? this.spawnCellForGroup(group, preferred) : null;
       if (spawnKey) {
         spawns.push({ key: spawnKey, special, type: special === 'rainbow' ? null : group.type });
+        this.on.special(special);
       }
     });
     await this.clearCells(toClear, { spawns });
