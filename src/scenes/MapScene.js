@@ -10,6 +10,7 @@ import { Daily } from '../core/Daily.js';
 import { openLuckyWheel, makeWheelButton } from '../ui/LuckyWheel.js';
 import { openQuests, makeQuestButton } from '../ui/QuestBoard.js';
 import { openZoneComplete } from '../ui/Celebration.js';
+import { Unlocks } from '../core/Unlocks.js';
 
 /** Map look for tougher levels. */
 const DIFFICULTY = {
@@ -42,6 +43,7 @@ export class MapScene extends Phaser.Scene {
   init(data) {
     this.restoreScroll = data?.scrollY;
     this.focusLevel = data?.focusLevel;
+    this.justUnlocked = data?.justUnlocked;
   }
 
   create() {
@@ -71,6 +73,9 @@ export class MapScene extends Phaser.Scene {
     } else {
       const focus = this.nodes[this.focusLevel ?? this.unlocked];
       cam.scrollY = Phaser.Math.Clamp(focus.y - H * 0.55, 0, Math.max(0, this.worldH - H));
+    }
+    if (this.justUnlocked !== undefined && this.justUnlocked === this.unlocked && this.justUnlocked > 0) {
+      this.playUnlockFanfare(this.justUnlocked);
     }
 
     const onResize = () => this.scene.restart({ scrollY: cam.scrollY });
@@ -252,6 +257,8 @@ export class MapScene extends Phaser.Scene {
       const locked = i > this.unlocked;
 
       const node = this.add.container(pos.x, pos.y);
+      this.nodeViews = this.nodeViews ?? [];
+      this.nodeViews[i] = node;
       const diff = DIFFICULTY[level.difficulty];
       const color = locked ? 'grey' : diff ? diff.orb : current ? 'yellow' : 'green';
       const bg = this.add.image(0, 0, orbTexture(this, current ? 84 : 74, color));
@@ -275,6 +282,7 @@ export class MapScene extends Phaser.Scene {
         this.tweens.add({ targets: bg, scale: bg.scale * 1.08, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         // Little marker hopping above the current level.
         const marker = this.add.image(pos.x, pos.y - 70, 'jewel-rose').setDisplaySize(44, 44);
+        this.currentMarker = marker;
         this.tweens.add({ targets: marker, y: pos.y - 82, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       }
 
@@ -322,6 +330,11 @@ export class MapScene extends Phaser.Scene {
       const btn = makeBoosterButton(this, {
         x: (i - 1) * 96, y: top + 272, kind, size: 74,
         onClick: () => {
+          if (btn.lockedUntil) {
+            playSfx(this, 'invalid');
+            hint.setText(`${BOOSTERS[kind].name} unlocks at level ${btn.lockedUntil}`);
+            return;
+          }
           if (Inventory.count(kind) <= 0) {
             openBuyBooster(this, kind, { onBought: () => btn.setCount(Inventory.count(kind)) });
             return;
@@ -334,6 +347,7 @@ export class MapScene extends Phaser.Scene {
         },
       });
       btn.setCount(Inventory.count(kind));
+      btn.setLocked(Unlocks.lockedUntil(kind, LEVELS.length));
       panel.add(btn);
     });
 
@@ -359,6 +373,42 @@ export class MapScene extends Phaser.Scene {
 
   showNoLives() {
     openNoLives(this, { onLives: () => this.livesBadge.refresh(), onClose: () => this.livesBadge.refresh() });
+  }
+
+  /** After a first clear: the camera glides from the finished level up to the new one, which pops open. */
+  playUnlockFanfare(index) {
+    const node = this.nodeViews?.[index];
+    if (!node) return;
+    const { height: H } = this.scale;
+    const cam = this.cameras.main;
+    const from = this.nodes[index - 1];
+    const to = this.nodes[index];
+    const clampY = (y) => Phaser.Math.Clamp(y - H * 0.55, 0, Math.max(0, this.worldH - H));
+    cam.scrollY = clampY(from.y);
+    node.setScale(0);
+    this.currentMarker?.setAlpha(0);
+
+    // A grey padlock sits where the new level will appear, then bursts.
+    const lock = this.add.image(to.x, to.y, 'ui-lock').setDisplaySize(40, 40);
+    this.tweens.chain({
+      targets: lock,
+      tweens: [
+        { delay: 500, angle: { from: -14, to: 14 }, duration: 70, yoyo: true, repeat: 4 },
+        { scale: lock.scale * 1.6, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => lock.destroy() },
+      ],
+    });
+    this.tweens.add({ targets: cam, scrollY: clampY(to.y), duration: 900, delay: 150, ease: 'Sine.easeInOut' });
+    this.time.delayedCall(1250, () => {
+      playSfx(this, 'win', { volume: 0.7 });
+      const sparkle = this.add.particles(to.x, to.y, 'fx-star6', {
+        lifespan: 800, speed: { min: 100, max: 300 }, scale: { start: 0.5, end: 0 }, alpha: { start: 1, end: 0 },
+        tint: [0xffffff, 0xfff3b0, 0xffe08a, 0xff8fc4], emitting: false,
+      });
+      sparkle.explode(36);
+      this.time.delayedCall(1000, () => sparkle.destroy());
+      this.tweens.add({ targets: node, scale: 1, duration: 520, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: this.currentMarker, alpha: 1, duration: 300, delay: 400 });
+    });
   }
 
   /** Highest finished garden whose celebration hasn't been shown (older ones are marked silently). */

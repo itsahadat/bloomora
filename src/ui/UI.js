@@ -536,6 +536,7 @@ export function makeBoosterButton(scene, { x, y, kind, size = 64, onClick }) {
 
   let pulse = null;
   button.setCount = (n) => {
+    if (button.lockedUntil) return;
     badge.setValue(n);
     badge.setVisible(n > 0);
     plus.setVisible(n <= 0);
@@ -547,6 +548,24 @@ export function makeBoosterButton(scene, { x, y, kind, size = 64, onClick }) {
     bg.setTexture(on ? tex.active : tex.normal);
     pulse?.stop();
     if (on) pulse = scene.tweens.add({ targets: glow, alpha: { from: 1, to: 0.4 }, duration: 500, yoyo: true, repeat: -1 });
+  };
+  // Locked slot: grey, a padlock and the level that opens it.
+  let lockParts = null;
+  button.setLocked = (level) => {
+    button.lockedUntil = level ?? null;
+    lockParts?.forEach((o) => o.destroy());
+    lockParts = null;
+    const locked = !!level;
+    bg.setTexture(locked ? buttonTexture(scene, size, size, 'grey', radius) : tex.normal);
+    icon.setVisible(!locked);
+    if (locked) {
+      [badge, plus, plusGlyph].forEach((o) => o.setVisible(false));
+      lockParts = [
+        scene.add.image(0, -6, 'ui-lock').setDisplaySize(size * 0.42, size * 0.42),
+        scene.add.text(0, size * 0.26, `Lv ${level}`, textStyle(Math.round(size * 0.2), '#ffffff', { stroke: '#666666', strokeThickness: 4 })).setOrigin(0.5),
+      ];
+      button.add(lockParts);
+    }
   };
   return button;
 }

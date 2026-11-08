@@ -26,6 +26,8 @@ import { playSfx, playMusic } from '../core/Sound.js';
 import { Lives } from '../core/Lives.js';
 import { Streak } from '../core/Streak.js';
 import { Quests } from '../core/Quests.js';
+import { Unlocks } from '../core/Unlocks.js';
+import { addMascot } from '../ui/Mascot.js';
 import { Wallet } from '../core/Wallet.js';
 import { openBuyBooster, openNoLives } from '../ui/Shop.js';
 
@@ -107,13 +109,23 @@ export class GameScene extends Phaser.Scene {
     playSfx(this, 'start');
     playMusic();
     // First time a level brings a new obstacle, explain it before play starts.
+    // Before play: introduce new obstacles, then newly unlocked boosters, then the level intro.
     const fresh = this.newFeatures();
-    if (fresh.length) {
+    const unlocked = Unlocks.newOnLevel(this.level.id);
+    const steps = [];
+    if (fresh.length) steps.push((next) => this.showFeatureCard(fresh, next));
+    if (unlocked.length) steps.push((next) => this.showUnlockCard(unlocked, next));
+    if (steps.length) {
       this.board.locked = true;
-      this.time.delayedCall(450, () => this.showFeatureCard(fresh, () => {
-        this.board.locked = false;
-        this.showIntro();
-      }));
+      const run = (i) => {
+        if (i >= steps.length) {
+          this.board.locked = false;
+          this.showIntro();
+          return;
+        }
+        steps[i](() => run(i + 1));
+      };
+      this.time.delayedCall(450, () => run(0));
     } else {
       this.showIntro();
     }
@@ -367,6 +379,7 @@ Tap to use it.`);
       btn.on('pointerout', () => btn.holdTimer?.remove());
       btn.on('pointerup', () => btn.holdTimer?.remove());
       btn.setCount(Inventory.count(kind));
+      btn.setLocked(Unlocks.lockedUntil(kind, LEVELS.length));
       this.boosterBar.add(btn);
       this.boosterButtons[kind] = btn;
     });
@@ -451,6 +464,12 @@ Tap to use it.`);
     const board = this.board;
     if (this.ended || board.busy || board.locked) return;
     const button = this.boosterButtons[kind];
+    if (button.lockedUntil) {
+      playSfx(this, 'invalid');
+      const m = button.getWorldTransformMatrix();
+      showTooltip(this, m.tx, m.ty - 40 * m.scaleY, `${BOOSTERS[kind].name} is locked`, `It unlocks at level ${button.lockedUntil}. Keep growing!`);
+      return;
+    }
 
     if (board.mode === kind || (kind === 'swap' && board.mode === 'swap')) {
       this.setBoosterMode(null);
@@ -597,11 +616,11 @@ Tap to use it.`);
         this.flushTally();
         Quests.add('win');
         Quests.add('stars', stars);
-        return { stars, reward, coins };
+        return { stars, reward, coins, firstClear };
       }).then(async (result) => {
         await this.showVictory();
         return result;
-      }).then(({ stars, reward, coins }) => this.showPopup({
+      }).then(({ stars, reward, coins, firstClear }) => this.showPopup({
         title: 'Garden Bloomed!',
         subtitle: 'Score ' + this.score.toLocaleString(),
         rewards: [
@@ -615,10 +634,10 @@ Tap to use it.`);
               label: 'Next Level',
               onClick: () => (Lives.count() > 0
                 ? this.scene.restart({ levelIndex: this.levelIndex + 1 })
-                : this.goToMap(this.levelIndex + 1)),
+                : this.goToMap(this.levelIndex + 1, firstClear)),
             }
             : { label: 'Replay', onClick: () => this.restartLevel() },
-          { label: 'Map', color: 'blue', onClick: () => this.goToMap(this.levelIndex + 1) },
+          { label: 'Map', color: 'blue', onClick: () => this.goToMap(this.levelIndex + 1, firstClear) },
         ],
       }));
     } else {
@@ -671,8 +690,10 @@ Tap to use it.`);
     this.scene.restart({ levelIndex: this.levelIndex });
   }
 
-  goToMap(focusLevel = this.levelIndex) {
-    this.scene.start('MapScene', { focusLevel: Math.min(focusLevel, LEVELS.length - 1) });
+  /** `unlockedNew` plays the map's "path opens" fanfare for a first clear. */
+  goToMap(focusLevel = this.levelIndex, unlockedNew = false) {
+    const focus = Math.min(focusLevel, LEVELS.length - 1);
+    this.scene.start('MapScene', { focusLevel: focus, justUnlocked: unlockedNew && focusLevel < LEVELS.length ? focus : undefined });
   }
 
   /** Leaving a level after making a move costs a life, so ask first. */
@@ -710,7 +731,8 @@ Tap to use it.`);
   async celebrate() {
     this.showConfetti();
     const wait = (ms) => new Promise((resolve) => this.time.delayedCall(ms, resolve));
-    await wait(700);
+    this.showGoalsDone();
+    await wait(1500);
     const bonus = Math.min(this.movesLeft, 12);
     if (bonus > 0) {
       this.showBanner('Bonus Bloom!');
@@ -718,6 +740,20 @@ Tap to use it.`);
       await this.board.bonusRound(bonus, (pos) => this.bonusSpark(pos));
     }
     await wait(300);
+  }
+
+  /** Big "All Goals Complete!" burst the moment the level is won. */
+  showGoalsDone() {
+    const { x, y } = this.boardCenter();
+    const layer = this.add.container(x, y).setDepth(90);
+    const star = this.add.image(0, -40, bigStarTexture(this, 256, true)).setScale(0);
+    const text = this.add.text(0, 50, 'All Goals\nComplete!', titleStyle(Math.min(54, this.scale.width * 0.11), '#2c861b', { align: 'center' }))
+      .setOrigin(0.5).setScale(0.3).setAlpha(0);
+    layer.add([star, text]);
+    playSfx(this, 'special');
+    this.tweens.add({ targets: star, scale: 0.42, angle: { from: -90, to: 0 }, duration: 420, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: text, scale: 1, alpha: 1, duration: 360, delay: 120, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: layer, alpha: 0, y: y - 40, duration: 320, delay: 1250, onComplete: () => layer.destroy() });
   }
 
   /** A spark flies from the moves bubble to the bloom it turns into a line bloom. */
@@ -784,12 +820,44 @@ Tap to use it.`);
     playSfx(this, 'sparkle');
   }
 
+  /** "New booster!" card: Bea presents a newly unlocked booster and gives one to try. */
+  showUnlockCard(kinds, onDone) {
+    const kind = kinds[0];
+    const b = BOOSTERS[kind];
+    const modal = showModal(this, { title: 'New Booster!', color: 'blue', width: 340, height: 360, depth: 120 });
+    const { panel, top } = modal;
+    const glow = this.add.image(30, top + 70, 'fx-glow').setDisplaySize(170, 170).setTint(0xfff3b0).setAlpha(0.8);
+    this.tweens.add({ targets: glow, alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
+    const icon = this.add.image(30, top + 70, boosterIcon(kind)).setDisplaySize(84, 84);
+    const iconScale = icon.scale;
+    icon.setScale(0);
+    this.tweens.add({ targets: icon, scale: iconScale, duration: 480, delay: 200, ease: 'Back.easeOut' });
+    const bea = addMascot(this, -96, top + 92, 92);
+    const name = this.add.text(0, top + 150, b.name, titleStyle(28, '#1a5bb0')).setOrigin(0.5);
+    const help = this.add.text(0, top + 190, `${b.help}.`, textStyle(16, '#9a6b3c', { align: 'center', wordWrap: { width: 280 } })).setOrigin(0.5);
+    const gift = this.add.text(0, top + 222, 'Here\u2019s one free to try!', textStyle(15, '#2f9e57')).setOrigin(0.5);
+    const ok = makeButton(this, {
+      x: 0, y: top + 280, width: 200, height: 58, label: 'Got it!', color: 'green', fontSize: 24,
+      onClick: () => {
+        kinds.forEach((k) => Inventory.add(k, 1));
+        Unlocks.markIntroduced(kinds);
+        Object.entries(this.boosterButtons).forEach(([k, btn]) => btn.setCount(Inventory.count(k)));
+        playSfx(this, 'sparkle');
+        modal.close();
+        if (kinds.length > 1) this.showUnlockCard(kinds.slice(1), onDone);
+        else onDone();
+      },
+    });
+    panel.add([glow, icon, bea, name, help, gift, ok]);
+    playSfx(this, 'special');
+  }
+
   // ---------------------------------------------------------------- tutorial
 
   /** First time on the early levels: a hand shows a valid swipe until the player touches the board. */
   maybeShowTutorial() {
     if (this.levelIndex > 2 || Progress.starsFor(this.levelIndex) > 0 || this.ended) return;
-    this.time.delayedCall(this.level.tip ? 1300 : 300, () => {
+    this.time.delayedCall(this.level.tip ? 1500 : 400, () => {
       const move = this.board.findPossibleMove();
       if (!move || this.board.busy) return;
       const [a, b] = move.map((t) => {
@@ -797,6 +865,19 @@ Tap to use it.`);
         return this.board.toWorld(p.x, p.y);
       });
       const size = this.board.scaleFactor * 64;
+      const { width: W, height: H } = this.scale;
+
+      // Spotlight: dim everything except the two blooms to swap.
+      const shade = this.add.renderTexture(0, 0, W, H).setOrigin(0).setDepth(34).setAlpha(0);
+      shade.fill(0x1a0f05, 0.62);
+      const hole = this.make.graphics({}, false);
+      const x0 = Math.min(a.x, b.x) - size / 2 - 6;
+      const y0 = Math.min(a.y, b.y) - size / 2 - 6;
+      hole.fillStyle(0xffffff, 1).fillRoundedRect(x0, y0, Math.abs(a.x - b.x) + size + 12, Math.abs(a.y - b.y) + size + 12, 16);
+      shade.erase(hole);
+      hole.destroy();
+      this.tweens.add({ targets: shade, alpha: 1, duration: 300 });
+
       const glowA = this.add.image(a.x, a.y, 'fx-glow').setDisplaySize(size * 1.6, size * 1.6).setTint(0xfff3b0).setDepth(35);
       const glowB = this.add.image(b.x, b.y, 'fx-glow').setDisplaySize(size * 1.6, size * 1.6).setTint(0xfff3b0).setDepth(35);
       const hand = this.add.image(a.x + 12, a.y + 18, 'ui-hand').setOrigin(0.3, 0.05).setDisplaySize(56, 56).setDepth(40);
@@ -811,15 +892,23 @@ Tap to use it.`);
         ],
       });
       [glowA, glowB].forEach((g) => this.tweens.add({ targets: g, alpha: 0.3, duration: 500, yoyo: true, repeat: -1 }));
+
+      // Bea explains from the half of the board away from the move.
+      const r = this.boardRect;
+      const pairUp = (a.y + b.y) / 2 < r.y + r.height / 2;
+      const beaSize = Math.min(120, r.width * 0.26);
+      const beaX = r.x + beaSize * 0.7;
+      const beaY = pairUp ? r.y + r.height - beaSize * 0.6 : r.y + beaSize * 0.6;
+      const bea = addMascot(this, beaX, beaY, beaSize).setDepth(41);
+      const beaScale = bea.scale;
+      bea.setScale(0);
+      this.tweens.add({ targets: bea, scale: beaScale, duration: 380, ease: 'Back.easeOut' });
       const [title, body] = TUTORIAL_STEPS[this.levelIndex];
-      // Above the pair when there's room, otherwise below it.
-      const top = Math.min(a.y, b.y) - size * 0.6;
-      const below = top < 120;
-      const anchorY = below ? Math.max(a.y, b.y) + size * 0.6 : top;
-      const caption = showTooltip(this, (a.x + b.x) / 2, anchorY, title, body, { duration: 0, depth: 45, below });
+      const caption = showTooltip(this, beaX + beaSize * 0.9, pairUp ? beaY - beaSize * 0.45 : beaY + beaSize * 0.45, title, body, { duration: 0, depth: 45, below: !pairUp });
       this.input.once('pointerdown', () => {
         loop.stop();
         caption.close();
+        this.tweens.add({ targets: [shade, bea], alpha: 0, duration: 220, onComplete: () => { shade.destroy(); bea.destroy(); } });
         [hand, glowA, glowB].forEach((o) => o.destroy());
       });
     });
@@ -930,6 +1019,13 @@ Tap to use it.`);
       const title = this.add.text(W / 2, Math.max(50, H / 2 - starHalf - 46), 'Victory!', titleStyle(Math.min(76, W * 0.15), '#2b5a1e'))
         .setOrigin(0.5).setScale(0.3).setAlpha(0);
       layer.add([overlay, rays, star, title]);
+      // Bea cheers next to the star.
+      const beaSize = Math.min(150, Math.min(W, H) * 0.24);
+      const bea = addMascot(this, W / 2 - starHalf - beaSize * 0.2, H / 2 + starHalf * 0.55, beaSize);
+      const beaScale = bea.scale;
+      bea.setScale(0);
+      layer.add(bea);
+      this.tweens.add({ targets: bea, scale: beaScale, duration: 420, delay: 500, ease: 'Back.easeOut' });
 
       this.tweens.add({ targets: overlay, fillAlpha: 0.6, duration: 300 });
       this.tweens.add({ targets: rays, alpha: 0.9, duration: 500 });
