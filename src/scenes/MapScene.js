@@ -27,6 +27,8 @@ import {
 import { orbTexture, insetTexture, cardTexture } from '../ui/Skin.js';
 
 const NODE_GAP = 150;
+/** How many locked levels show above the player's current one; the rest hide under clouds. */
+const REVEAL_AHEAD = 9;
 const TOP_SPACE = 360;
 const BOTTOM_SPACE = 200;
 const MEADOW = 0x9fd987;
@@ -59,6 +61,7 @@ export class MapScene extends Phaser.Scene {
     this.drawWorld();
     this.drawPath();
     this.drawNodes();
+    this.drawClouds();
     this.createHud();
     this.setupScrolling();
     playMusic();
@@ -73,6 +76,10 @@ export class MapScene extends Phaser.Scene {
     } else {
       const focus = this.nodes[this.focusLevel ?? this.unlocked];
       cam.scrollY = Phaser.Math.Clamp(focus.y - H * 0.55, 0, Math.max(0, this.worldH - H));
+    }
+    if (this.clouds) {
+      const top = Math.max(0, this.cloudEdge(this.revealIndex) - H * 0.45);
+      cam.setBounds(0, top, W, Math.max(this.worldH - top, H));
     }
     if (this.justUnlocked !== undefined && this.justUnlocked === this.unlocked && this.justUnlocked > 0) {
       this.playUnlockFanfare(this.justUnlocked);
@@ -288,7 +295,7 @@ export class MapScene extends Phaser.Scene {
 
       bg.setInteractive({ useHandCursor: !locked });
       bg.on('pointerup', () => {
-        if (this.dragDistance > 12) return;
+        if (this.dragDistance > 12 || i > this.revealIndex) return;
         if (locked) {
           playSfx(this, 'click', { volume: 0.4, detune: -500 });
           this.tweens.add({ targets: node, angle: { from: -8, to: 8 }, duration: 60, yoyo: true, repeat: 2, onComplete: () => node.setAngle(0) });
@@ -375,6 +382,45 @@ export class MapScene extends Phaser.Scene {
     openNoLives(this, { onLives: () => this.livesBadge.refresh(), onClose: () => this.livesBadge.refresh() });
   }
 
+  /** Y where the cloud bank starts, just above level `index`. */
+  cloudEdge(index) {
+    return this.nodes[index].y - NODE_GAP * 0.55;
+  }
+
+  /** Levels far ahead hide under a soft bank of clouds that rolls back as the player progresses. */
+  drawClouds() {
+    this.revealIndex = Math.min(LEVELS.length - 1, this.unlocked + REVEAL_AHEAD);
+    if (this.revealIndex >= LEVELS.length - 1) return;
+    const { width: W } = this.scale;
+    const edge = this.cloudEdge(this.revealIndex);
+    const clouds = this.add.container(0, edge).setDepth(45);
+    const rng = new Phaser.Math.RandomDataGenerator(['bloomora-clouds']);
+
+    // Solid sky-white body above the edge, fading in over the last stretch.
+    const body = this.add.graphics();
+    body.fillStyle(0xf3f8ff, 1).fillRect(0, -edge - 400, W, edge + 400 - 70);
+    body.fillGradientStyle(0xf3f8ff, 0xf3f8ff, 0xf3f8ff, 0xf3f8ff, 1, 1, 0, 0).fillRect(0, -70, W, 40);
+    clouds.add(body);
+
+    // Puffy cloud row along the edge (shadow first, then white puffs), gently drifting.
+    const puff = (x, y, w, h) => {
+      const g = this.add.graphics();
+      g.fillStyle(0xc9d9ee, 0.9).fillEllipse(0, 8, w, h);
+      g.fillStyle(0xffffff, 1).fillEllipse(0, 0, w, h);
+      g.fillStyle(0xffffff, 1).fillEllipse(-w * 0.22, -h * 0.28, w * 0.55, h * 0.75).fillEllipse(w * 0.2, -h * 0.22, w * 0.5, h * 0.7);
+      g.setPosition(x, y);
+      clouds.add(g);
+      this.tweens.add({ targets: g, x: x + rng.between(-14, 14), duration: rng.between(2600, 4200), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      return g;
+    };
+    for (let x = -40; x < W + 60; x += rng.between(70, 100)) puff(x, rng.between(-30, -8), rng.between(140, 200), rng.between(70, 96));
+    for (let i = 0; i < 14; i += 1) puff(rng.between(0, W), -rng.between(150, 900), rng.between(120, 220), rng.between(60, 90)).setAlpha(0.8);
+
+    const label = this.add.text(W / 2, -64, 'Clear levels to part the clouds!', textStyle(17, '#6b87a8', { align: 'center' })).setOrigin(0.5);
+    clouds.add(label);
+    this.clouds = clouds;
+  }
+
   /** After a first clear: the camera glides from the finished level up to the new one, which pops open. */
   playUnlockFanfare(index) {
     const node = this.nodeViews?.[index];
@@ -398,6 +444,12 @@ export class MapScene extends Phaser.Scene {
       ],
     });
     this.tweens.add({ targets: cam, scrollY: clampY(to.y), duration: 900, delay: 150, ease: 'Sine.easeInOut' });
+    // The cloud bank drifts back to uncover one more level.
+    if (this.clouds) {
+      const edge = this.clouds.y;
+      this.clouds.y = this.cloudEdge(this.revealIndex - 1);
+      this.tweens.add({ targets: this.clouds, y: edge, duration: 1400, delay: 900, ease: 'Sine.easeInOut' });
+    }
     this.time.delayedCall(1250, () => {
       playSfx(this, 'win', { volume: 0.7 });
       const sparkle = this.add.particles(to.x, to.y, 'fx-star6', {
