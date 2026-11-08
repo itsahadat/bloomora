@@ -31,7 +31,8 @@ const NODE_GAP = 150;
 /** How many locked levels show above the player's current one; the rest hide under clouds. */
 const REVEAL_AHEAD = 9;
 const TOP_SPACE = 360;
-const BOTTOM_SPACE = 200;
+// Room under level 1, so its garden sign stays clear of the Quests and Lucky Wheel corner buttons.
+const BOTTOM_SPACE = 300;
 const MEADOW = 0x9fd987;
 // The flat grass at the bottom of the garden background picture (map/garden-bg.png).
 const GRASS = 0x58ad42;
