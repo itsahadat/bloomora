@@ -68,7 +68,7 @@ export function panelTexture(scene, w, h) {
   return canvasTexture(scene, `skin-panel-${w}x${h}`, w + M * 2, h + M * 2, (ctx) => {
     const x = M; const y = M;
     shadow(ctx, true, { blur: 18, y: 8, color: 'rgba(30, 15, 0, 0.45)' });
-    rr(ctx, x, y, w, h, 34);
+    rr(ctx, x, y, w, h, 22);
     ctx.fillStyle = vgrad(ctx, y, y + h, [[0, '#f3bb73'], [0.5, '#d9934a'], [1, '#b8702f']]);
     ctx.fill();
     shadow(ctx, false);
@@ -76,13 +76,13 @@ export function panelTexture(scene, w, h) {
     ctx.strokeStyle = '#8b4f1c';
     ctx.stroke();
     // Light top edge on the wood.
-    rr(ctx, x + 4, y + 3, w - 8, h - 8, 31);
+    rr(ctx, x + 4, y + 3, w - 8, h - 8, 19);
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgba(255, 228, 180, 0.7)';
     ctx.stroke();
     // Parchment.
     const b = 13;
-    rr(ctx, x + b, y + b, w - b * 2, h - b * 2, 24);
+    rr(ctx, x + b, y + b, w - b * 2, h - b * 2, 13);
     ctx.fillStyle = vgrad(ctx, y + b, y + h - b, [[0, '#fffaf0'], [1, '#fbe9c4']]);
     ctx.fill();
     ctx.lineWidth = 3;
@@ -90,7 +90,7 @@ export function panelTexture(scene, w, h) {
     ctx.stroke();
     // Stitched dashed line.
     const d = b + 9;
-    rr(ctx, x + d, y + d, w - d * 2, h - d * 2, 17);
+    rr(ctx, x + d, y + d, w - d * 2, h - d * 2, 8);
     ctx.setLineDash([10, 7]);
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = 'rgba(196, 140, 80, 0.55)';
@@ -321,6 +321,11 @@ export function glyphTexture(scene, kind) {
     if (kind === 'pause') {
       rr(ctx, 16, 12, 11, 40, 4); ctx.fill();
       rr(ctx, 37, 12, 11, 40, 4); ctx.fill();
+    } else if (kind === 'close-plain') {
+      // Plain wood-brown X for panel corners: a soft light emboss under a solid stroke.
+      shadow(ctx, true, { blur: 0, y: 2, color: 'rgba(255,255,255,0.9)' });
+      ctx.lineWidth = 9; ctx.strokeStyle = '#a8642a';
+      ctx.beginPath(); ctx.moveTo(18, 18); ctx.lineTo(46, 46); ctx.moveTo(46, 18); ctx.lineTo(18, 46); ctx.stroke();
     } else if (kind === 'close') {
       ctx.lineWidth = 11; ctx.strokeStyle = '#ffffff';
       ctx.beginPath(); ctx.moveTo(17, 17); ctx.lineTo(47, 47); ctx.moveTo(47, 17); ctx.lineTo(17, 47); ctx.stroke();

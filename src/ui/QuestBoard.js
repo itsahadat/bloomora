@@ -65,7 +65,7 @@ export function openQuests(scene, { coinTarget, onClose } = {}) {
   });
 
   const close = makeRoundButton(scene, {
-    x: width / 2 - 26, y: -height / 2 + 26, size: 38, label: '✕', color: 'red',
+    x: width / 2 - 34, y: -height / 2 + 34, size: 40, label: '✕', color: 'red',
     onClick: () => {
       modal.close();
       onClose?.();

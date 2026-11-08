@@ -455,7 +455,7 @@ Tap to use it.`);
       },
     });
     const close = makeRoundButton(this, {
-      x: modal.width / 2 - 30, y: -modal.height / 2 + 30, size: 42, label: '✕', color: 'red', onClick: done,
+      x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red', onClick: done,
     });
     panel.add([sound, music, resume, restart, map, close]);
   }

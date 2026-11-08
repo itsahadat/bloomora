@@ -91,7 +91,7 @@ export function openBuyBooster(scene, kind, { onBought, onClose } = {}) {
   buy.add(scene.add.image(-34, -3, 'ui-coin').setDisplaySize(30, 30));
   const note = scene.add.text(0, top + 194, `You have ${Wallet.count().toLocaleString()} coins`, textStyle(14, '#b08a60', { align: 'center', wordWrap: { width: 260 } })).setOrigin(0.5);
   const close = makeRoundButton(scene, {
-    x: modal.width / 2 - 26, y: -modal.height / 2 + 26, size: 38, label: '✕', color: 'red', onClick: finish,
+    x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red', onClick: finish,
   });
   panel.add([buy, note, close]);
   pin(panel);
@@ -178,7 +178,7 @@ export function openShop(scene, { onClose } = {}) {
   }));
 
   const close = makeRoundButton(scene, {
-    x: width / 2 - 26, y: -height / 2 + 26, size: 38, label: '✕', color: 'red',
+    x: width / 2 - 34, y: -height / 2 + 34, size: 40, label: '✕', color: 'red',
     onClick: () => {
       modal.close();
       onClose?.();
@@ -295,7 +295,7 @@ export function openCoinPacks(scene, { onClose } = {}) {
     panel.add([bg, pile, name, sub, btn]);
   });
   const close = makeRoundButton(scene, {
-    x: width / 2 - 26, y: -height / 2 + 26, size: 38, label: '✕', color: 'red',
+    x: width / 2 - 34, y: -height / 2 + 34, size: 40, label: '✕', color: 'red',
     onClick: () => {
       modal.close();
       onClose?.();

@@ -77,7 +77,7 @@ export class MenuScene extends Phaser.Scene {
       },
     });
     const close = makeRoundButton(this, {
-      x: modal.width / 2 - 26, y: -modal.height / 2 + 26, size: 38, label: '✕', color: 'red', onClick: () => modal.close(),
+      x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red', onClick: () => modal.close(),
     });
     panel.add([sound, music, credits, reset, close]);
   }

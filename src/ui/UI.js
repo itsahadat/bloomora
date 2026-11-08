@@ -121,10 +121,14 @@ export function makeRoundButton(scene, {
   x, y, size = 44, icon, label, color = 'green', onClick,
 }) {
   const button = scene.add.container(x, y);
-  const bg = scene.add.image(0, 0, buttonTexture(scene, size, size, color, size * 0.3));
-  button.add(bg);
   const glyph = GLYPHS[label] ?? ICON_GLYPHS[icon] ?? (['pause', 'close', 'back', 'gear', 'plus', 'restart', 'map'].includes(icon) ? icon : null);
-  if (glyph) {
+  // A close (✕) button is just a plain X sitting inside the panel; everything else is a glossy rounded square.
+  const isClose = glyph === 'close';
+  const bg = scene.add.image(0, 0, buttonTexture(scene, size, size, color, size * 0.3)).setVisible(!isClose);
+  button.add(bg);
+  if (isClose) {
+    button.add(scene.add.image(0, 0, glyphTexture(scene, 'close-plain')).setDisplaySize(size * 0.62, size * 0.62));
+  } else if (glyph) {
     button.add(scene.add.image(0, -2, glyphTexture(scene, glyph)).setDisplaySize(size * 0.56, size * 0.56));
   } else if (icon) {
     button.add(scene.add.image(0, -2, icon).setDisplaySize(size * 0.58, size * 0.58));

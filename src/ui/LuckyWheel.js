@@ -153,7 +153,7 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
   let spinning = false;
   let current = 0;
   const close = makeRoundButton(scene, {
-    x: width / 2 - 26, y: -modal.height / 2 + 26, size: 38, label: '✕', color: 'red',
+    x: width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red',
     onClick: () => {
       if (spinning) return;
       modal.close();

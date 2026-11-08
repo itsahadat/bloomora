@@ -434,7 +434,7 @@ export class MapScene extends Phaser.Scene {
     });
     this.tweens.add({ targets: play, scale: 1.04, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const close = makeRoundButton(this, {
-      x: modal.width / 2 - 22, y: -modal.height / 2 + 22, size: 46, label: '✕', color: 'red', onClick: () => modal.close(),
+      x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red', onClick: () => modal.close(),
     });
     panel.add([play, close]);
     panel.setScrollFactor(0, 0, true);
