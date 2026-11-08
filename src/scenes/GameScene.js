@@ -205,7 +205,18 @@ export class GameScene extends Phaser.Scene {
   /** Landscape screens get side columns; portrait screens a top bar and a bottom booster row. */
   isWide() {
     const { width: W, height: H } = this.scale;
-    return W >= 820 && W > H * 1.15;
+    // Includes 800x450 (a common desktop portal frame) and phones held sideways.
+    return W >= 560 && W > H * 1.15;
+  }
+
+  /** Scale the side-column HUD by `s` (short landscape screens shrink it to fit). */
+  setHudScale(s) {
+    this.hudScale = s;
+    [this.movesBubble, this.goalCard, this.scoreCard, this.boosterBar].forEach((o) => o.setScale(s));
+    [this.pauseButton, this.muteButton].forEach((b) => {
+      b.baseScale = s;
+      b.setScale(s);
+    });
   }
 
   layout() {
@@ -216,33 +227,42 @@ export class GameScene extends Phaser.Scene {
 
     if (wide) {
       const colW = 150;
-      const cx = PAD + colW / 2;
+      const goalsH = 36 + goals.length * 62 + 10;
+      const colH = CARD_H + 12 + goalsH + 12 + 84;
+      // The left column (and the right one, to match) shrinks to fit short screens.
+      const s = Math.min(1, (H - PAD * 2) / colH);
+      this.setHudScale(s);
+      const cx = PAD + (colW / 2) * s;
       let y = PAD;
       this.movesBubble.resize(colW, CARD_H);
-      this.movesBubble.setPosition(cx, y + CARD_H / 2);
+      this.movesBubble.setPosition(cx, y + (CARD_H / 2) * s);
       this.movesText.setPosition(0, 14);
-      y += CARD_H + 12;
+      y += (CARD_H + 12) * s;
 
-      const goalsH = 36 + goals.length * 62 + 10;
       this.goalCard.resize(colW, goalsH);
-      this.goalCard.setPosition(cx, y + goalsH / 2);
+      this.goalCard.setPosition(cx, y + (goalsH / 2) * s);
       this.goalRow.setScale(1).setPosition(-6, -goalsH / 2 + 36 + 6);
       goals.forEach(({ item }, i) => item.setPosition(0, 31 + i * 62));
-      y += goalsH + 12;
+      y += (goalsH + 12) * s;
 
       this.scoreCard.resize(colW, 84);
-      this.scoreCard.setPosition(cx, y + 42);
+      this.scoreCard.setPosition(cx, y + 42 * s);
       this.layoutScoreBar(colW - 34, 16);
 
-      this.pauseButton.setPosition(W - PAD - 30, PAD + 30);
-      this.muteButton.setPosition(W - PAD - 30, PAD + 88);
+      this.pauseButton.setPosition(W - PAD - 30 * s, PAD + 30 * s);
+      this.muteButton.setPosition(W - PAD - 30 * s, PAD + 88 * s);
 
+      // Boosters sit below the two round buttons, centered in the space that is left.
       const kinds = Object.keys(this.boosterButtons);
-      this.boosterBar.setPosition(W - PAD - 46, H / 2 + 30);
+      const boosterTop = PAD + 124 * s;
+      this.boosterBar.setPosition(W - PAD - 46 * s, (boosterTop + H - PAD) / 2);
       kinds.forEach((k, i) => this.boosterButtons[k].setPosition(0, (i - (kinds.length - 1) / 2) * 96));
 
-      this.boardRect = this.board.layout(PAD + colW + 16, PAD, W - PAD * 2 - colW - 16 - 112, H - PAD * 2);
+      const left = PAD + colW * s + 16;
+      const right = 112 * s;
+      this.boardRect = this.board.layout(left, PAD, W - left - PAD - right, H - PAD * 2);
     } else {
+      this.setHudScale(1);
       const hudW = Math.min(W - PAD * 2, 600);
       const left = (W - hudW) / 2;
       const btnCol = 56;
@@ -531,7 +551,7 @@ Tap to use it.`);
     if (this.ended) return;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
     this.movesText.setText(`${this.movesLeft}`);
-    this.tweens.add({ targets: this.movesBubble, scale: 1.15, duration: 110, yoyo: true });
+    this.tweens.add({ targets: this.movesBubble, scale: 1.15 * (this.hudScale ?? 1), duration: 110, yoyo: true });
     if (this.movesLeft <= 5) {
       this.movesText.setColor(COLORS.bad);
     }
@@ -710,7 +730,7 @@ Tap to use it.`);
     this.board.locked = false;
     this.movesLeft += 3;
     this.movesText.setText(`${this.movesLeft}`).setColor(COLORS.text);
-    this.tweens.add({ targets: this.movesBubble, scale: 1.35, duration: 180, yoyo: true, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: this.movesBubble, scale: 1.35 * (this.hudScale ?? 1), duration: 180, yoyo: true, ease: 'Back.easeOut' });
     this.showBanner('+3 Moves!');
     playSfx(this, payWithCoins ? 'coin' : 'sparkle');
   }

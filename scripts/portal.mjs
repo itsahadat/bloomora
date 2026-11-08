@@ -1,7 +1,8 @@
 /**
- * Build a game-portal upload: bloomora-<portal>.zip with index.html at the zip root.
- * Usage: npm run itch         -> upload on itch.io as an HTML game
- *        npm run crazygames   -> upload on the CrazyGames Developer Portal
+ * Build a game-portal upload.
+ * Usage: npm run itch         -> bloomora-itch.zip (index.html at the zip root) for itch.io
+ *        npm run crazygames   -> the dist-crazygames folder: the CrazyGames Developer Portal
+ *                                takes files, not zips, so drag in the folder's CONTENTS
  */
 import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -9,8 +10,12 @@ import { join } from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
 
 const PORTALS = {
-  itch: 'upload it on itch.io as an HTML game',
-  crazygames: 'upload it on the CrazyGames Developer Portal (choose "Progress Save" for the Data module)',
+  itch: { zip: true, how: 'upload it on itch.io as an HTML game' },
+  crazygames: {
+    zip: false,
+    how: 'drag everything INSIDE that folder (index.html, assets/, icons/...) into the CrazyGames '
+      + 'Developer Portal, and choose "Progress Save" so the Data module is switched on',
+  },
 };
 const portal = process.argv[2];
 if (!PORTALS[portal]) {
@@ -28,6 +33,12 @@ execSync(`npx vite build --outDir ${DIR} --emptyOutDir`, {
   env: { ...process.env, VITE_TARGET: portal },
 });
 rmSync(join(DIR, 'sw.js'), { force: true });
+
+if (!PORTALS[portal].zip) {
+  console.log(`
+Built ${DIR}/ — ${PORTALS[portal].how}.`);
+  process.exit(0);
+}
 
 // Minimal zip writer (forward-slash paths, which itch.io needs).
 const files = [];
@@ -85,4 +96,4 @@ end.writeUInt32LE(cenBuf.length, 12);
 end.writeUInt32LE(offset, 16);
 writeFileSync(OUT, Buffer.concat([...parts, cenBuf, end]));
 
-console.log(`\nMade ${OUT} (${files.length} files, ${(statSync(OUT).size / 1048576).toFixed(1)} MB) — ${PORTALS[portal]}.`);
+console.log(`\nMade ${OUT} (${files.length} files, ${(statSync(OUT).size / 1048576).toFixed(1)} MB) — ${PORTALS[portal].how}.`);

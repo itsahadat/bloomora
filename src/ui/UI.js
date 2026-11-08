@@ -134,8 +134,16 @@ export function makeAdButton(scene, {
       running = false;
       if (!button.active) return;
       button.setAlpha(1);
-      if (watched) onReward?.(button);
-      else playSfx(scene, 'invalid');
+      if (watched) {
+        onReward?.(button);
+      } else {
+        playSfx(scene, 'invalid');
+        // Never leave a dead ad button: say why nothing happened.
+        if (!Ads.canShow(placement)) {
+          const m = button.getWorldTransformMatrix();
+          showTooltip(scene, m.tx, m.ty - 30 * m.scaleY, 'No ad right now', 'Ads are not available at the moment. Try again later!', { depth: 400, duration: 2400 });
+        }
+      }
       // Used up today's ads for this spot: fade the button away.
       if (!Ads.canShow(placement) && button.active) {
         button.disableInteractive();

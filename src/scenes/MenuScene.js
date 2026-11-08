@@ -145,7 +145,8 @@ export class MenuScene extends Phaser.Scene {
     // Floating blooms in the background.
     ['rose', 'strawberry', 'drop', 'sun', 'grape', 'kiwi'].forEach((type, i) => {
       const x = width * (0.1 + (i % 3) * 0.4 + (i > 2 ? 0.2 : 0));
-      const y = height * (i > 2 ? 0.78 : 0.12) + (i % 2) * 30;
+      // The top row stays below the corner buttons.
+      const y = (i > 2 ? height * 0.78 : Math.max(height * 0.12, 72)) + (i % 2) * 30;
       const bloom = this.add.image(x, y, `jewel-${type}`).setDisplaySize(56, 56).setAlpha(0.85);
       this.tweens.add({
         targets: bloom, y: y - 14, angle: { from: -8, to: 8 }, duration: 1600 + i * 180,
@@ -155,14 +156,19 @@ export class MenuScene extends Phaser.Scene {
 
     // Candy logo, each letter bobbing in a little wave.
     const size = Math.round(Phaser.Math.Clamp(Math.min(width * 0.13, height * 0.15), 52, 110));
-    const { letters } = makeGameLogo(this, width * 0.5, height * 0.22, GAME_TITLE, size);
+    // Short screens (800x450 portal frames, phones sideways) get a smaller card and Play button.
+    const cs = Phaser.Math.Clamp(height / 700, 0.7, 1);
+    const logoY = height * 0.22;
+    const taglineY = logoY + size * 0.72;
+    const cardY = Math.max(height * 0.52, taglineY + 24 + 80 * cs);
+    const { letters } = makeGameLogo(this, width * 0.5, logoY, GAME_TITLE, size);
     letters.forEach((t, i) => {
       this.tweens.add({
         targets: t, y: -10, duration: 700, delay: i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
       });
     });
 
-    const tagline = this.add.text(width * 0.5, height * 0.22 + size * 0.72, 'Bloom your garden with brilliant matches', titleStyle(20, '#2c861b'))
+    const tagline = this.add.text(width * 0.5, taglineY, 'Bloom your garden with brilliant matches', titleStyle(20, '#2c861b'))
       .setOrigin(0.5);
     // Keep a margin on narrow phones instead of running edge to edge.
     if (tagline.width > width - 48) tagline.setScale((width - 48) / tagline.width);
@@ -170,7 +176,7 @@ export class MenuScene extends Phaser.Scene {
     const index = Progress.currentLevelIndex(LEVELS.length);
     const level = LEVELS[index];
 
-    const card = this.add.container(width * 0.5, height * 0.52);
+    const card = this.add.container(width * 0.5, cardY).setScale(cs);
     const cardBg = this.add.image(0, 0, panelTexture(this, 320, 160));
     const cardTitle = this.add.text(0, -40, `Level ${level.id}`, textStyle(30, COLORS.title, { stroke: '#ffffff', strokeThickness: 6 })).setOrigin(0.5);
     const cardSubtitle = this.add.text(0, -8, level.name, textStyle(18, COLORS.soft)).setOrigin(0.5);
@@ -191,7 +197,7 @@ export class MenuScene extends Phaser.Scene {
 
     const play = makeButton(this, {
       x: width * 0.5,
-      y: height * 0.52 + 132,
+      y: cardY + 132 * cs,
       width: 260,
       height: 80,
       label: 'Play',
@@ -199,6 +205,8 @@ export class MenuScene extends Phaser.Scene {
       fontSize: 40,
       onClick: () => this.scene.start('MapScene'),
     });
-    this.tweens.add({ targets: play, scale: 1.05, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    play.baseScale = cs;
+    play.setScale(cs);
+    this.tweens.add({ targets: play, scale: 1.05 * cs, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
 }
