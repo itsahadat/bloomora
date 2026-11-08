@@ -646,7 +646,7 @@ Tap to use it.`);
 
     if (won) {
       const movesAtWin = this.movesLeft;
-      this.time.delayedCall(500, () => playSfx(this, 'win'));
+      // The victory fanfare plays later, when the "Victory!" screen appears (showVictory).
       const hasNext = this.levelIndex < LEVELS.length - 1;
       // Stars are decided after the bonus round has added its points.
       this.celebrate().then(() => {
@@ -1101,7 +1101,10 @@ Tap to use it.`);
       this.tweens.add({ targets: rays, alpha: 0.9, duration: 500 });
       this.tweens.add({ targets: rays, angle: 360, duration: 14000, repeat: -1 });
       const starScale = Math.min(W, H) * 0.42 / 256;
-      this.tweens.add({ targets: star, scale: starScale, angle: { from: -60, to: 0 }, duration: 600, delay: 150, ease: 'Back.easeOut' });
+      this.tweens.add({
+        targets: star, scale: starScale, angle: { from: -60, to: 0 }, duration: 600, delay: 150, ease: 'Back.easeOut',
+        onStart: () => playSfx(this, 'win'),
+      });
       this.tweens.add({ targets: star, scale: starScale * 1.06, duration: 900, delay: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 420, delay: 300, ease: 'Back.easeOut' });
       this.time.delayedCall(300, () => {
