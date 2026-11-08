@@ -1,8 +1,8 @@
 # Bloomora — Sound Effects & Music List
 
 Every sound the game plays, with when it plays and how it should feel.
-All of them now play from files in `public/assets/audio/` except `special.mp3`, which still uses
-the sound generated in code. Any file that is missing keeps its generated version.
+All of them now play from files in `public/assets/audio/`.
+Any file that is missing falls back to a sound generated in code.
 
 ## Format
 
