@@ -107,7 +107,8 @@ const MUSIC_FILES = { 'music-menu': 'menu', 'music-level': 'level' };
 
 // Target loudness (RMS of the audible part, dBFS) after balancing.
 const SFX_TARGET_DB = -28;
-const MUSIC_TARGET_DB = -30;
+// Music sits well under the effects: a quiet background bed.
+const MUSIC_TARGET_DB = -37;
 
 const PENTA = [0, 2, 4, 7, 9];
 /** Semitones for pentatonic step `s` (0, 2, 4, 7, 9, 12, ...), capped at an octave and a half. */
