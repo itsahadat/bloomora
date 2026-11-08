@@ -116,7 +116,7 @@ export class GameScene extends Phaser.Scene {
       .then(() => this.board.applyStartBoosters([...this.startBoosters, ...this.streakGifts.map((k) => `streak:${k}`)]))
       .then(() => this.maybeShowTutorial());
     playSfx(this, 'start');
-    playMusic();
+    playMusic('level');
     // First time a level brings a new obstacle, explain it before play starts.
     // Before play: introduce new obstacles, then newly unlocked boosters, then the level intro.
     const fresh = this.newFeatures();

@@ -1,16 +1,16 @@
 # Bloomora — Sound Effects & Music List
 
 Every sound the game plays, with when it plays and how it should feel.
-Right now all of these are generated in code; your files will replace them one by one.
-Any sound you don't make yet keeps its current generated version, so you can deliver them in batches.
+All of them now play from files in `public/assets/audio/` except `special.mp3`, which still uses
+the sound generated in code. Any file that is missing keeps its generated version.
 
 ## Format
 
 - **MP3** (works in every browser and on Android). OGG is fine too if you also give an MP3.
 - 44.1 kHz. Mono is fine for short effects; music in stereo.
-- Trim silence at the start: the sound must begin **instantly** (matters most for `pop`, `swap`, `click`).
-- Keep peaks around -3 dB and similar loudness across files. I'll balance volumes in code.
-- Put the files in `public/assets/sfx/` (effects) and `public/assets/music/` (music), using the names below.
+- Silence at the start or end is fine: the game skips it, so the sound starts **instantly**.
+- Loudness is balanced automatically from each file (per-sound tweaks: `weight` in `src/core/Sound.js`).
+- Put every file (effects and music) in `public/assets/audio/`, using the names below.
 
 **Overall mood:** cozy, bright, garden and nature. Soft wood, bells, plucks, chimes and leafy swooshes.
 No harsh electronic beeps or buzzers, and no heavy explosions, even for the "boom" sounds.
@@ -72,7 +72,7 @@ If you only make one track, call it `music-menu.mp3` and I'll use it everywhere.
 
 ---
 
-## When the files are ready
+## Adding or replacing a file
 
-Put them in the folders above and tell me. I'll switch each sound from the generated
-version to your file, balance the volumes, and keep the pitch-rising effects.
+Drop it into `public/assets/audio/` with the name above. It's picked up on the next reload;
+no code change is needed for the names in this list.

@@ -55,15 +55,79 @@ function schedule() {
   }
 }
 
-/** Start (or keep) the music. Safe to call before the first user gesture: it waits for the unlock. */
-export function startMusic() {
-  wanted = true;
+// ---------------------------------------------------------------- recorded tracks
+
+/** Recorded loops by name ('menu', 'level'): { buffer, start, end, gain }. */
+const tracks = {};
+let currentTrack = 'menu';
+let source = null;
+let sourceGain = null;
+let sourceTrack = null;
+
+/** Register a decoded music file; it replaces the synthesized tune for that track. */
+export function addMusicTrack(name, track) {
+  tracks[name] = track;
+  // Arrived while that music should already be playing: switch over now.
+  if (wanted && name === currentTrack) startMusic(name);
+}
+
+function stopSource(fade = 0.4) {
+  if (!source) return;
   const ctx = audioContext();
-  if (!ctx || !isRunning() || timer) return;
+  const old = source;
+  const oldGain = sourceGain;
+  oldGain.gain.cancelScheduledValues(ctx.currentTime);
+  oldGain.gain.setValueAtTime(oldGain.gain.value, ctx.currentTime);
+  oldGain.gain.linearRampToValueAtTime(0, ctx.currentTime + fade);
+  old.stop(ctx.currentTime + fade + 0.05);
+  source = null;
+  sourceGain = null;
+  sourceTrack = null;
+}
+
+function playTrack(name, track) {
+  const ctx = audioContext();
+  if (sourceTrack === name && source) return;
+  stopSource(0.6);
+  const src = ctx.createBufferSource();
+  src.buffer = track.buffer;
+  src.loop = true;
+  // Loop only the audible part, so the encoder's silence at both ends never leaves a gap.
+  src.loopStart = track.start;
+  src.loopEnd = track.end;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(track.gain, ctx.currentTime + 0.8);
+  src.connect(gain).connect(getMusicBus());
+  src.start(ctx.currentTime, track.start);
+  source = src;
+  sourceGain = gain;
+  sourceTrack = name;
+}
+
+/**
+ * Start (or keep) the music for `track` ('menu' or 'level'): its recorded file when loaded
+ * (the menu file stands in for a missing level file), else the synthesized lullaby.
+ * Safe to call before the first user gesture: it waits for the unlock.
+ */
+export function startMusic(track = currentTrack) {
+  wanted = true;
+  currentTrack = track;
+  const ctx = audioContext();
+  if (!ctx || !isRunning()) return;
   const bus = getMusicBus();
   bus.gain.cancelScheduledValues(ctx.currentTime);
   bus.gain.setValueAtTime(bus.gain.value, ctx.currentTime);
   bus.gain.linearRampToValueAtTime(1, ctx.currentTime + 1.2);
+
+  const name = tracks[track] ? track : tracks.menu ? 'menu' : null;
+  if (name) {
+    clearInterval(timer);
+    timer = null;
+    playTrack(name, tracks[name]);
+    return;
+  }
+  if (timer) return;
   nextTime = ctx.currentTime + 0.1;
   schedule();
   timer = setInterval(schedule, 60);
@@ -79,6 +143,7 @@ export function stopMusic() {
   bus.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
   clearInterval(timer);
   timer = null;
+  stopSource(0.4);
 }
 
 export function musicWanted() {

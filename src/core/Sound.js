@@ -1,5 +1,7 @@
 import { audioContext, isRunning, SOUNDS, playBuffer } from './Synth.js';
-import { startMusic, stopMusic, musicWanted } from './Music.js';
+import {
+  startMusic, stopMusic, musicWanted, addMusicTrack,
+} from './Music.js';
 import { Store } from './Storage.js';
 
 const MUTE_KEY = 'bloomora.muted';
@@ -58,52 +60,108 @@ export function setAllMuted(value) {
   setMusicMuted(value);
 }
 
-/** Start the background tune unless the player turned music off. */
-export function playMusic() {
-  if (!isMusicMuted()) startMusic();
+/** Start the background tune ('menu' or 'level') unless the player turned music off. */
+export function playMusic(track = 'menu') {
+  if (!isMusicMuted()) startMusic(track);
 }
 
 // ---------------------------------------------------------------- recorded sound files
 
 /**
- * Sound effects that have a recorded file in public/assets/sfx/<key>.mp3, with a volume
- * to balance them against each other. Every other key keeps its synthesized sound
- * (core/Synth.js), so files can be added one at a time.
+ * Sound effects with a recorded file in public/assets/audio/<key>.mp3. Any key that is
+ * missing here, or whose file fails to load, keeps its synthesized sound (core/Synth.js).
+ * Loudness is evened out automatically from each file (see analyse()); `weight` then makes
+ * a sound a bit louder or softer than the rest on purpose.
  * `steps`: how the call's `step` (combo chain, star 1-2-3, pot filling) raises the pitch.
  */
-// Volumes were set from each file's measured loudness (RMS) so they sit together
-// and roughly level with the synthesized sounds that are still in use.
 const SAMPLE_FILES = {
-  pop: { vol: 0.5, steps: (s) => Math.min(s, 7) },
-  swap: { vol: 0.7 },
-  select: { vol: 0.3 },
-  invalid: { vol: 0.28 },
-  click: { vol: 0.7 },
-  special: { vol: 0.4 },
-  star: { vol: 0.25, steps: (s) => s * 2 },
-  sparkle: { vol: 0.45 },
-  tick: { vol: 0.4 },
-  drip: { vol: 0.46, steps: (s) => s },
-  bloom: { vol: 0.5 },
+  pop: { weight: 1, steps: (s) => Math.min(s, 7) },
+  swap: { weight: 0.8 },
+  select: { weight: 0.7 },
+  invalid: { weight: 0.8 },
+  click: { weight: 0.7 },
+  line: { weight: 1 },
+  blast: { weight: 1 },
+  boom: { weight: 1.1 },
+  rainbow: { weight: 1.1 },
+  smash: { weight: 1.1 },
+  start: { weight: 1 },
+  win: { weight: 1.1 },
+  lose: { weight: 0.9 },
+  star: { weight: 1, steps: (s) => s * 2 },
+  coin: { weight: 0.8 },
+  sparkle: { weight: 0.9 },
+  tick: { weight: 0.6 },
+  crate: { weight: 0.9 },
+  break: { weight: 1 },
+  snip: { weight: 1 },
+  drip: { weight: 0.9, steps: (s) => s },
+  bloom: { weight: 1 },
+  spread: { weight: 1 },
+  dig: { weight: 1 },
+  breeze: { weight: 0.9 },
 };
+
+/** Music loops: file name -> track name used by playMusic(). */
+const MUSIC_FILES = { 'music-menu': 'menu', 'music-level': 'level' };
+
+// Target loudness (RMS of the audible part, dBFS) after balancing.
+const SFX_TARGET_DB = -28;
+const MUSIC_TARGET_DB = -30;
 
 const PENTA = [0, 2, 4, 7, 9];
 /** Semitones for pentatonic step `s` (0, 2, 4, 7, 9, 12, ...), capped at an octave and a half. */
 const pentaSemis = (s) => Math.min(19, 12 * Math.floor(s / 5) + PENTA[Math.max(0, Math.round(s)) % 5]);
 
+/**
+ * Where the sound really starts and ends (skipping silence the editor left at both ends)
+ * and the gain that brings its loudness to `targetDb`.
+ */
+function analyse(buffer, targetDb) {
+  const data = buffer.getChannelData(0);
+  const rate = buffer.sampleRate;
+  let first = -1;
+  let last = 0;
+  for (let i = 0; i < data.length; i += 1) {
+    if (Math.abs(data[i]) > 0.01) {
+      if (first < 0) first = i;
+      last = i;
+    }
+  }
+  if (first < 0) return { start: 0, end: buffer.duration, gain: 1 };
+  let sum = 0;
+  for (let i = first; i <= last; i += 1) sum += data[i] * data[i];
+  const rmsDb = 10 * Math.log10(sum / (last - first + 1) || 1e-9);
+  return {
+    start: Math.max(0, first / rate - 0.005),
+    end: Math.min(buffer.duration, last / rate + 0.05),
+    gain: Math.min(3, Math.max(0.05, 10 ** ((targetDb - rmsDb) / 20))),
+  };
+}
+
 const samples = {};
 
-/** Fetch and decode the sound files in the background; until one arrives its synth version plays. */
+function loadAudio(file) {
+  return fetch(`${import.meta.env.BASE_URL}assets/audio/${file}.mp3`)
+    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(res.status))))
+    .then((data) => audioContext().decodeAudioData(data));
+}
+
+/** Fetch and decode the files in the background; until one arrives its synth version plays. */
 function loadSamples() {
-  const ctx = audioContext();
-  if (!ctx) return;
+  if (!audioContext()) return;
   Object.keys(SAMPLE_FILES).forEach((key) => {
-    fetch(`${import.meta.env.BASE_URL}assets/sfx/${key}.mp3`)
-      .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(res.status))))
-      .then((data) => ctx.decodeAudioData(data))
-      .then((buffer) => { samples[key] = buffer; })
+    loadAudio(key)
+      .then((buffer) => { samples[key] = { buffer, ...analyse(buffer, SFX_TARGET_DB) }; })
       .catch(() => {
         // Missing or undecodable: keep the synthesized sound.
+      });
+  });
+  Object.entries(MUSIC_FILES).forEach(([file, track]) => {
+    loadAudio(file)
+      .then((buffer) => addMusicTrack(track, { buffer, ...analyse(buffer, MUSIC_TARGET_DB) }))
+      .catch(() => {
+        // Missing: the synthesized lullaby keeps playing.
       });
   });
 }
@@ -120,9 +178,14 @@ export function playSfx(_scene, key, config = {}) {
   const volume = config.volume ?? 1;
   try {
     const file = SAMPLE_FILES[key];
-    if (file && samples[key]) {
+    const sample = samples[key];
+    if (file && sample) {
       const semis = file.steps ? pentaSemis(file.steps(config.step ?? 0)) : 0;
-      playBuffer(samples[key], { vol: file.vol * volume, rate: pitch * 2 ** (semis / 12) });
+      playBuffer(sample.buffer, {
+        vol: sample.gain * file.weight * volume,
+        rate: pitch * 2 ** (semis / 12),
+        offset: sample.start,
+      });
       return;
     }
     SOUNDS[key]?.(pitch, volume, config);

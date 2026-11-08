@@ -60,7 +60,7 @@ export function getMusicBus() {
  * Play a decoded audio file on the sound-effects bus.
  * `rate` changes pitch and speed together (2 = an octave up).
  */
-export function playBuffer(buffer, { vol = 1, rate = 1 } = {}) {
+export function playBuffer(buffer, { vol = 1, rate = 1, offset = 0 } = {}) {
   if (!ctx || !buffer) return;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
@@ -68,7 +68,8 @@ export function playBuffer(buffer, { vol = 1, rate = 1 } = {}) {
   const gain = ctx.createGain();
   gain.gain.value = vol;
   src.connect(gain).connect(sfxBus);
-  src.start();
+  // `offset` skips silence at the start of the file so the sound plays the instant it's called.
+  src.start(0, offset);
 }
 
 // ---------------------------------------------------------------- notes
