@@ -213,9 +213,13 @@ export const SOUNDS = {
     tone({ f: penta(17) * p, t: 0.16, dur: 0.4, vol: 0.04 * v });
   },
   // Line bloom fires: a bright "zwiiip".
+  // Line bloom fires: a bright laser "pew" sweeping down, with a little chime on the tail.
   line(p, v) {
-    tone({ f: 480 * p, to: 2000 * p, glide: 0.16, dur: 0.22, vol: 0.1 * v, type: 'triangle' });
-    noise({ dur: 0.24, vol: 0.05 * v, freq: 2500, to: 7000, q: 2 });
+    tone({ f: 2400 * p, to: 180 * p, glide: 0.26, dur: 0.3, vol: 0.06 * v, type: 'sawtooth', attack: 0.002 });
+    tone({ f: 2430 * p, to: 186 * p, glide: 0.26, dur: 0.3, vol: 0.04 * v, type: 'square', attack: 0.002 });
+    tone({ f: 1200 * p, to: 90 * p, glide: 0.3, dur: 0.32, vol: 0.12 * v, attack: 0.002 });
+    noise({ dur: 0.18, vol: 0.04 * v, freq: 6000, to: 1500, q: 1.5 });
+    bell(penta(12) * p, { t: 0.06, dur: 0.4, vol: 0.05 * v });
   },
   // Burst bloom: a punchy "BOOM" — thump, noise burst, crackle — with a sparkle on top.
   blast(p, v) {

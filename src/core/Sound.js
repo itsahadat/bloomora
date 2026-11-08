@@ -83,7 +83,7 @@ const SAMPLE_FILES = {
   invalid: { weight: 0.8 },
   click: { weight: 0.7 },
   special: { weight: 1 },
-  line: { weight: 1 },
+  // line: the synthesized laser in Synth.js (the player preferred it to line.mp3).
   blast: { weight: 1 },
   boom: { weight: 1.1 },
   rainbow: { weight: 1.1 },
