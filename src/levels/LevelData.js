@@ -12,6 +12,11 @@ const MIX_B = ['apple', 'kiwi', 'blueberry', 'lemon', 'grape'];
 const MIX_C = ['watermelon', 'orange', 'berry', 'drop', 'banana'];
 const MIX_E = ['pineapple', 'strawberry', 'blueberry', 'kiwi', 'grape'];
 const ORCH_6 = ['watermelon', 'orange', 'berry', 'drop', 'banana', 'grape'];
+// Tropical Grove sets: pineapple and banana never share a board (both yellow).
+const TROPIC_A = ['pineapple', 'orange', 'watermelon', 'blueberry', 'kiwi'];
+const TROPIC_B = ['banana', 'strawberry', 'kiwi', 'drop', 'grape'];
+const TROPIC_C = ['pineapple', 'apple', 'berry', 'drop', 'grape'];
+const TROPIC_6 = ['banana', 'watermelon', 'kiwi', 'orange', 'grape', 'drop'];
 
 /*
  * Layout legend (8 x 8, see Board.parseLayout):
@@ -698,6 +703,176 @@ export const LEVELS = [
       '__....__',
     ],
   },
+  // ------------------------------------------------ Tropical Grove (41-50)
+  {
+    id: 41,
+    name: 'Palm Gate',
+    moves: 20,
+    types: TROPIC_A,
+    objective: { pineapple: 20, kiwi: 20 },
+    tip: 'Welcome to the Tropical Grove! Gather pineapples and kiwis.',
+  },
+  {
+    id: 42,
+    name: 'Coconut Crates',
+    moves: 17,
+    types: TROPIC_B,
+    objective: { crate: 'all', banana: 18 },
+    tip: 'Banded boxes take two hits to break.',
+    layout: [
+      '........',
+      '........',
+      '........',
+      '.CC..CC.',
+      '........',
+      '..c..c..',
+      '........',
+      '........',
+    ],
+  },
+  {
+    id: 43,
+    name: 'Lagoon Shore',
+    moves: 21,
+    types: TROPIC_A,
+    objective: { soil: 'all', watermelon: 16 },
+    layout: [
+      '........',
+      '.ssssss.',
+      '.sSSSSs.',
+      '.sS..Ss.',
+      '.sS..Ss.',
+      '.sSSSSs.',
+      '.ssssss.',
+      '........',
+    ],
+  },
+  {
+    id: 44,
+    name: 'Mango Terrace',
+    moves: 22,
+    types: TROPIC_B,
+    potNeed: 5,
+    objective: { pot: 'all', grape: 16 },
+    tip: 'These pots want strawberries!',
+    layout: [
+      '........',
+      '..8..8..',
+      '........',
+      '........',
+      '........',
+      '........',
+      '..8..8..',
+      '........',
+    ],
+  },
+  {
+    id: 45,
+    name: 'Jungle Vines',
+    moves: 24,
+    types: TROPIC_C,
+    objective: { vine: 'all', weed: 'all' },
+    layout: [
+      '........',
+      'vv....vv',
+      '..v..v..',
+      '...ww...',
+      '...ww...',
+      '..v..v..',
+      'vv....vv',
+      '........',
+    ],
+  },
+  {
+    id: 46,
+    name: 'Banana Drop',
+    moves: 26,
+    types: TROPIC_B,
+    objective: { seed: 2, crate: 'all' },
+    tip: 'Bring the seeds down to the bottom row!',
+    layout: [
+      '........',
+      '........',
+      '.c....c.',
+      '........',
+      '...cc...',
+      '........',
+      '........',
+      '........',
+    ],
+  },
+  {
+    id: 47,
+    name: 'Tide Pools',
+    moves: 22,
+    types: TROPIC_C,
+    potNeed: 5,
+    objective: { soil: 'all', pot: 'all' },
+    layout: [
+      '_......_',
+      '..ssss..',
+      '.s9..9s.',
+      '.s....s.',
+      '_s....s_',
+      '.s5..5s.',
+      '..ssss..',
+      '_......_',
+    ],
+  },
+  {
+    id: 48,
+    name: 'Six Fruit Isle',
+    moves: 20,
+    types: TROPIC_6,
+    objective: { crate: 'all', orange: 20 },
+    tip: 'Six kinds of fruit — line them up carefully!',
+    layout: [
+      '........',
+      '........',
+      'c..cc..c',
+      '........',
+      '........',
+      'c..cc..c',
+      '........',
+      '........',
+    ],
+  },
+  {
+    id: 49,
+    name: 'Thorn Thicket',
+    moves: 17,
+    types: TROPIC_A,
+    objective: { weed: 'all', soil: 'all' },
+    layout: [
+      '........',
+      '.w....w.',
+      '..ssss..',
+      '..sSSs..',
+      '..sSSs..',
+      '..ssss..',
+      '.w....w.',
+      '........',
+    ],
+  },
+  {
+    id: 50,
+    name: 'Tropical Crown',
+    moves: 27,
+    types: TROPIC_C,
+    potNeed: 5,
+    objective: { soil: 'all', crate: 'all', pot: 'all', vine: 'all' },
+    tip: 'The grove finale — everything at once!',
+    layout: [
+      '__....__',
+      '_.SSSS._',
+      '.S9cc9S.',
+      '.Sv..vS.',
+      '.Sv..vS.',
+      '.S5cc5S.',
+      '_.SSSS._',
+      '__....__',
+    ],
+  },
 ];
 
 /** Gardens on the map: a sign marks the level where each one starts (0-based index). */
@@ -705,6 +880,7 @@ export const ZONES = [
   { start: 0, name: 'Sunrise Garden' },
   { start: 16, name: 'Pottery Hills' },
   { start: 30, name: 'Fruit Orchard' },
+  { start: 40, name: 'Tropical Grove' },
 ];
 
 /** Objective with every 'all' replaced by the real count from the layout. */
