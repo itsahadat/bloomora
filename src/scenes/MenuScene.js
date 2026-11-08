@@ -21,6 +21,7 @@ import { Quests } from '../core/Quests.js';
 import { Store } from '../core/Storage.js';
 import { Platform } from '../core/Platform.js';
 import { CloudSave } from '../core/CloudSave.js';
+import { Review } from '../core/Review.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -46,7 +47,9 @@ export class MenuScene extends Phaser.Scene {
   openSettings() {
     // The Android app adds a cloud save row (Google sign-in).
     const cloudRow = CloudSave.available ? 66 : 0;
-    const modal = showModal(this, { title: 'Settings', color: 'yellow', width: 320, height: 396 + cloudRow });
+    // ...and a "Rate Bloomora" row that opens the Play Store page.
+    const rateRow = Review.available ? 66 : 0;
+    const modal = showModal(this, { title: 'Settings', color: 'yellow', width: 320, height: 396 + cloudRow + rateRow });
     const { panel, top } = modal;
     const musicLabel = () => (isMusicMuted() ? 'Music: Off' : 'Music: On');
     const music = makeButton(this, {
@@ -70,14 +73,14 @@ export class MenuScene extends Phaser.Scene {
       },
     });
     const credits = makeButton(this, {
-      x: 0, y: top + 182 + cloudRow, width: 230, height: 52, label: 'Credits', color: 'blue', fontSize: 21,
+      x: 0, y: top + 182 + cloudRow + rateRow, width: 230, height: 52, label: 'Credits', color: 'blue', fontSize: 21,
       onClick: () => {
         modal.close();
         this.openCredits();
       },
     });
     const reset = makeButton(this, {
-      x: 0, y: top + 248 + cloudRow, width: 230, height: 52, label: 'Reset Progress', color: 'red', fontSize: 21,
+      x: 0, y: top + 248 + cloudRow + rateRow, width: 230, height: 52, label: 'Reset Progress', color: 'red', fontSize: 21,
       onClick: () => {
         modal.close();
         this.confirmReset();
@@ -87,6 +90,13 @@ export class MenuScene extends Phaser.Scene {
       x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red', onClick: () => modal.close(),
     });
     panel.add([sound, music, credits, reset, close]);
+
+    if (rateRow) {
+      panel.add(makeButton(this, {
+        x: 0, y: top + 182 + cloudRow, width: 230, height: 52, label: 'Rate Bloomora', color: 'yellow', fontSize: 21,
+        onClick: () => Review.openStore(),
+      }));
+    }
 
     if (cloudRow) {
       const cloudLabel = () => (CloudSave.user ? 'Cloud Save: On' : 'Save with Google');

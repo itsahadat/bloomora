@@ -20,6 +20,9 @@ import {
 import { Ads } from '../core/Ads.js';
 import { Platform } from '../core/Platform.js';
 import { CloudSave } from '../core/CloudSave.js';
+import { Share, winCaption } from '../core/Share.js';
+import { Review } from '../core/Review.js';
+import { renderWinCard } from '../ui/ShareCard.js';
 import {
   cardTexture, insetTexture, panelTexture, raysTexture, bigStarTexture,
 } from '../ui/Skin.js';
@@ -698,6 +701,10 @@ Tap to use it.`);
         return result;
       }).then(({ stars, reward, coins, firstClear }) => {
         const coinChip = { icon: 'ui-coin', text: `+${coins}`, coins };
+        const shareInfo = {
+          levelNumber: this.levelIndex + 1, levelName: this.level.name, stars, score: this.score, coins, reward,
+        };
+        Review.afterWin(this.levelIndex, firstClear);
         return this.showPopup({
           title: 'Garden Bloomed!',
           subtitle: 'Score ' + this.score.toLocaleString(),
@@ -727,6 +734,7 @@ Tap to use it.`);
                   : this.goToMap(this.levelIndex + 1, firstClear)),
               }
               : { label: 'Replay', onClick: () => this.restartLevel() },
+            ...(Share.available ? [{ label: 'Share', color: 'yellow', onClick: () => this.shareWin(shareInfo, coinChip) }] : []),
             { label: 'Map', color: 'blue', onClick: () => this.goToMap(this.levelIndex + 1, firstClear) },
           ],
         });
@@ -1105,6 +1113,27 @@ Tap to use it.`);
       ],
       onComplete: () => text.destroy(),
     });
+  }
+
+  /** Share the win: a picture card from the game's art plus a caption with hashtags. */
+  async shareWin(info, coinChip) {
+    if (this.sharing) return;
+    this.sharing = true;
+    try {
+      // Coins may have been doubled by an ad since the popup opened.
+      const coins = Number(coinChip.labelText?.text?.replace(/\D/g, '')) || info.coins;
+      const image = await renderWinCard(this, { ...info, coins });
+      if (!image) return;
+      const { result, copied } = await Share.share(image, winCaption(info));
+      const { width: W, height: H } = this.scale;
+      if (result === 'downloaded') {
+        showTooltip(this, W / 2, H * 0.2, 'Card saved!', copied ? 'Caption copied: paste it with your picture.' : 'Post the picture with your caption.', { below: true });
+      } else if (result === 'shared' && copied) {
+        showTooltip(this, W / 2, H * 0.2, 'Caption copied', 'If the app leaves out the text, paste it in.', { below: true });
+      }
+    } finally {
+      this.sharing = false;
+    }
   }
 
   /** Dark overlay, spinning light rays, a big jelly star and "Victory!"; resolves on Continue. */
