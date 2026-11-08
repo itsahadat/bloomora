@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { textStyle, titleStyle, makeButton, makeRoundButton, showModal, boosterIcon } from './UI.js';
+import { canvasTexture } from './Skin.js';
 import { flyCoins } from './Shop.js';
 import { Wallet } from '../core/Wallet.js';
 import { Inventory, BOOSTERS } from '../core/Inventory.js';
@@ -19,62 +20,140 @@ function prizeText(prize) {
   return `+1 ${BOOSTERS[prize.booster].name}!`;
 }
 
-/** Static wooden rim with a gold band (does not turn). */
-function drawRim(scene, radius) {
-  const g = scene.add.graphics();
-  g.fillStyle(0x2a1606, 0.25).fillCircle(0, 6, radius + 15);
-  g.fillStyle(0x8a5a2b, 1).fillCircle(0, 0, radius + 15);
-  g.fillStyle(0xffc94a, 1).fillCircle(0, 0, radius + 11);
-  g.fillStyle(0xf0a91c, 1).fillCircle(0, 0, radius + 2);
-  return g;
+/** Wheel art is painted on 2x canvases (smooth, anti-aliased) and shown at 1x. */
+const HD = 2;
+
+const hex = (n) => `#${n.toString(16).padStart(6, '0')}`;
+/** Mix a 0xRRGGBB color toward white by `t` (0..1). */
+const lighten = (n, t) => {
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v + (255 - v) * t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+};
+
+function hdImage(scene, key, size, draw) {
+  canvasTexture(scene, key, size * HD, size * HD, (ctx) => {
+    ctx.scale(HD, HD);
+    draw(ctx, size / 2);
+  });
+  return scene.add.image(0, 0, key).setDisplaySize(size, size);
 }
 
-/** The turning face: petal-colored slices with prize icons. Segment 0 sits at the top. */
+/** Static rim: wooden outer ring and a polished gold band (does not turn). */
+function drawRim(scene, radius) {
+  const size = (radius + 26) * 2;
+  return hdImage(scene, `wheel-rim-${radius}`, size, (ctx, c) => {
+    const ring = (r, fill) => {
+      ctx.beginPath();
+      ctx.arc(c, c, r, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+    };
+    ctx.save();
+    ctx.shadowColor = 'rgba(60, 30, 0, 0.35)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 5;
+    const wood = ctx.createLinearGradient(0, c - radius - 20, 0, c + radius + 20);
+    wood.addColorStop(0, '#c98a4c');
+    wood.addColorStop(1, '#7a4a1e');
+    ring(radius + 20, wood);
+    ctx.restore();
+    const gold = ctx.createLinearGradient(0, c - radius - 16, 0, c + radius + 16);
+    gold.addColorStop(0, '#fff1b8');
+    gold.addColorStop(0.35, '#ffcf4a');
+    gold.addColorStop(0.7, '#f0a91c');
+    gold.addColorStop(1, '#c47a0c');
+    ring(radius + 16, gold);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(122, 74, 30, 0.8)';
+    ctx.beginPath();
+    ctx.arc(c, c, radius + 16, 0, Math.PI * 2);
+    ctx.stroke();
+    // Dark lip the face sits in.
+    ring(radius + 3, '#7a4a1e');
+  });
+}
+
+/** One glowing light bulb for the rim. */
+function bulbTexture(scene) {
+  return canvasTexture(scene, 'wheel-bulb', 24 * HD, 24 * HD, (ctx) => {
+    ctx.scale(HD, HD);
+    const g = ctx.createRadialGradient(10, 10, 1, 12, 12, 11);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.45, '#fff6c8');
+    g.addColorStop(1, 'rgba(255, 214, 90, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(12, 12, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fffbe8';
+    ctx.beginPath();
+    ctx.arc(12, 12, 4.2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+/** The turning face: glossy slices with prize icons. Segment 0 sits at the top. */
 function drawFace(scene, radius, { icons = true } = {}) {
   const face = scene.add.container(0, 0);
-  const g = scene.add.graphics();
   const half = Phaser.Math.DegToRad(SLICE / 2);
-  WHEEL_PRIZES.forEach((prize, i) => {
-    const mid = Phaser.Math.DegToRad(-90 + i * SLICE);
-    g.fillStyle(prize.jackpot ? JACKPOT : PETALS[i % PETALS.length], 1);
-    g.beginPath();
-    g.moveTo(0, 0);
-    g.arc(0, 0, radius, mid - half, mid + half, false);
-    g.closePath();
-    g.fillPath();
-    // A lighter inner band makes each slice look like a glossy petal.
-    g.fillStyle(0xffffff, 0.18);
-    g.beginPath();
-    g.moveTo(0, 0);
-    g.arc(0, 0, radius * 0.92, mid - half * 0.82, mid + half * 0.82, false);
-    g.closePath();
-    g.fillPath();
-  });
-  // White dividers and pegs between slices.
-  g.lineStyle(Math.max(1.5, radius * 0.025), 0xffffff, 0.95);
-  WHEEL_PRIZES.forEach((_p, i) => {
-    const a = Phaser.Math.DegToRad(-90 + i * SLICE + SLICE / 2);
-    g.lineBetween(0, 0, Math.cos(a) * radius, Math.sin(a) * radius);
-  });
-  if (icons) {
+  face.add(hdImage(scene, `wheel-face-${radius}-${icons ? 1 : 0}`, radius * 2, (ctx, c) => {
+    WHEEL_PRIZES.forEach((prize, i) => {
+      const mid = Phaser.Math.DegToRad(-90 + i * SLICE);
+      const base = prize.jackpot ? JACKPOT : PETALS[i % PETALS.length];
+      const g = ctx.createRadialGradient(c, c, radius * 0.1, c, c, radius);
+      g.addColorStop(0, lighten(base, 0.55));
+      g.addColorStop(0.8, hex(base));
+      g.addColorStop(1, hex(base));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.arc(c, c, radius, mid - half, mid + half);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // Soft inner shadow at the edge for depth.
+    const edge = ctx.createRadialGradient(c, c, radius * 0.82, c, c, radius);
+    edge.addColorStop(0, 'rgba(90, 40, 0, 0)');
+    edge.addColorStop(1, 'rgba(90, 40, 0, 0.22)');
+    ctx.fillStyle = edge;
+    ctx.beginPath();
+    ctx.arc(c, c, radius, 0, Math.PI * 2);
+    ctx.fill();
+    // White dividers with round ends, and gold pegs on the edge.
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(1.5, radius * 0.028);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
     WHEEL_PRIZES.forEach((_p, i) => {
       const a = Phaser.Math.DegToRad(-90 + i * SLICE + SLICE / 2);
-      g.fillStyle(0xffffff, 1).fillCircle(Math.cos(a) * (radius - 6), Math.sin(a) * (radius - 6), 4);
+      ctx.beginPath();
+      ctx.moveTo(c + Math.cos(a) * radius * 0.18, c + Math.sin(a) * radius * 0.18);
+      ctx.lineTo(c + Math.cos(a) * (radius - 2), c + Math.sin(a) * (radius - 2));
+      ctx.stroke();
+      if (icons) {
+        const px = c + Math.cos(a) * (radius - 7);
+        const py = c + Math.sin(a) * (radius - 7);
+        const peg = ctx.createRadialGradient(px - 1.5, py - 1.5, 0.5, px, py, 5);
+        peg.addColorStop(0, '#fff6d0');
+        peg.addColorStop(1, '#d48f12');
+        ctx.fillStyle = peg;
+        ctx.beginPath();
+        ctx.arc(px, py, 4.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
     });
-  }
-  face.add(g);
+  }));
 
   if (icons) {
     WHEEL_PRIZES.forEach((prize, i) => {
       const deg = -90 + i * SLICE;
       const a = Phaser.Math.DegToRad(deg);
       const at = (r) => ({ x: Math.cos(a) * r, y: Math.sin(a) * r });
-      const iconPos = at(radius * (prize.coins ? 0.7 : 0.62));
-      const size = radius * (prize.coins ? 0.26 : 0.34);
+      const iconPos = at(radius * (prize.coins ? 0.72 : 0.63));
+      const size = radius * (prize.coins ? 0.25 : 0.33);
       face.add(scene.add.image(iconPos.x, iconPos.y, prizeIcon(prize)).setDisplaySize(size, size).setAngle(deg + 90));
       if (prize.coins) {
-        const labelPos = at(radius * 0.43);
-        face.add(scene.add.text(labelPos.x, labelPos.y, `${prize.coins}`, titleStyle(Math.round(radius * 0.16), prize.jackpot ? '#a3121f' : '#b45a00'))
+        const labelPos = at(radius * 0.45);
+        face.add(scene.add.text(labelPos.x, labelPos.y, `${prize.coins}`, titleStyle(Math.round(radius * 0.16), prize.jackpot ? '#a3121f' : '#b45a00', { resolution: HD }))
           .setOrigin(0.5).setAngle(deg + 90));
       }
     });
@@ -82,24 +161,86 @@ function drawFace(scene, radius, { icons = true } = {}) {
   return face;
 }
 
-/** Center cap with a rose on it. */
+/** Center cap: a polished gold boss with a rose on it. */
 function drawHub(scene, radius) {
   const hub = scene.add.container(0, 0);
-  const g = scene.add.graphics();
-  g.fillStyle(0x8a5a2b, 1).fillCircle(0, 0, radius + 3);
-  g.fillStyle(0xfff6e0, 1).fillCircle(0, 0, radius);
-  hub.add([g, scene.add.image(0, 0, 'jewel-rose').setDisplaySize(radius * 1.6, radius * 1.6)]);
+  const cap = hdImage(scene, `wheel-hub-${Math.round(radius)}`, (radius + 5) * 2, (ctx, c) => {
+    ctx.save();
+    ctx.shadowColor = 'rgba(60, 30, 0, 0.35)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 2;
+    const gold = ctx.createLinearGradient(0, c - radius - 4, 0, c + radius + 4);
+    gold.addColorStop(0, '#fff1b8');
+    gold.addColorStop(0.5, '#f5b52a');
+    gold.addColorStop(1, '#b8700a');
+    ctx.fillStyle = gold;
+    ctx.beginPath();
+    ctx.arc(c, c, radius + 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    const cream = ctx.createRadialGradient(c, c - radius * 0.3, 1, c, c, radius);
+    cream.addColorStop(0, '#ffffff');
+    cream.addColorStop(1, '#ffeec8');
+    ctx.fillStyle = cream;
+    ctx.beginPath();
+    ctx.arc(c, c, radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  hub.add([cap, scene.add.image(0, 0, 'jewel-rose').setDisplaySize(radius * 1.55, radius * 1.55)]);
   return hub;
 }
 
-/** Red flag pointer at the top; its origin is the pivot so it can flick on each peg. */
+/**
+ * Glossy red pin pointer at the top. The image's origin is the round head, so it can
+ * flick on each peg while its tip points into the wheel.
+ */
 function drawPointer(scene, size) {
-  const g = scene.add.graphics();
-  g.fillStyle(0x2a1606, 0.25).fillTriangle(-size * 0.55, -size * 0.25 + 3, size * 0.55, -size * 0.25 + 3, 0, size + 3);
-  g.fillStyle(0xe0244a, 1).fillTriangle(-size * 0.55, -size * 0.25, size * 0.55, -size * 0.25, 0, size);
-  g.lineStyle(3, 0xffffff, 1).strokeTriangle(-size * 0.55, -size * 0.25, size * 0.55, -size * 0.25, 0, size);
-  g.fillStyle(0xffffff, 1).fillCircle(0, 0, size * 0.18);
-  return g;
+  const w = size * 1.5;
+  const h = size * 2;
+  const r = size * 0.55;
+  const key = `wheel-pointer-${size}`;
+  canvasTexture(scene, key, w * HD, h * HD, (ctx) => {
+    ctx.scale(HD, HD);
+    const cx = w / 2;
+    const cy = r + 2;
+    const tipY = h - 3;
+    const shape = () => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, Math.PI * 0.82, Math.PI * 0.18);
+      ctx.lineTo(cx, tipY);
+      ctx.closePath();
+    };
+    ctx.save();
+    ctx.shadowColor = 'rgba(60, 20, 0, 0.35)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetY = 2;
+    shape();
+    const red = ctx.createLinearGradient(0, 0, 0, h);
+    red.addColorStop(0, '#ff6f8a');
+    red.addColorStop(0.55, '#e0244a');
+    red.addColorStop(1, '#a8102c');
+    ctx.fillStyle = red;
+    ctx.fill();
+    ctx.restore();
+    shape();
+    ctx.lineWidth = Math.max(2, size * 0.1);
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    // Gold stud and a glint.
+    const stud = ctx.createRadialGradient(cx - 1, cy - 1, 0.5, cx, cy, r * 0.42);
+    stud.addColorStop(0, '#fff6d0');
+    stud.addColorStop(1, '#d48f12');
+    ctx.fillStyle = stud;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.45, cy - r * 0.45, r * 0.22, r * 0.12, -0.7, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  return scene.add.image(0, 0, key).setDisplaySize(w, h).setOrigin(0.5, (r + 2) / h);
 }
 
 /**
@@ -119,9 +260,9 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
   const bulbs = [];
   for (let i = 0; i < 16; i += 1) {
     const a = Phaser.Math.DegToRad(i * 22.5);
-    const bulb = scene.add.circle(Math.cos(a) * (R + 7), cy + Math.sin(a) * (R + 7), 3.5, i % 2 ? 0xffffff : 0xfff3b0);
+    const bulb = scene.add.image(Math.cos(a) * (R + 9.5), cy + Math.sin(a) * (R + 9.5), bulbTexture(scene)).setDisplaySize(15, 15);
     bulbs.push(bulb);
-    scene.tweens.add({ targets: bulb, alpha: 0.25, duration: 380, yoyo: true, repeat: -1, delay: (i % 2) * 380 });
+    scene.tweens.add({ targets: bulb, alpha: 0.35, duration: 420, yoyo: true, repeat: -1, delay: (i % 2) * 420 });
   }
 
   const face = drawFace(scene, R);
@@ -129,7 +270,7 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
   const hub = drawHub(scene, R * 0.17);
   hub.y = cy;
   const pointer = drawPointer(scene, 24);
-  pointer.y = cy - R - 12;
+  pointer.y = cy - R - 14;
 
   const info = scene.add.text(0, cy + R + 34, '', textStyle(17, '#7a4a1e', { align: 'center' })).setOrigin(0.5);
   const setInfo = () => info.setText(Wheel.hasFreeSpin() ? 'Your free spin is ready!' : 'Next free spin tomorrow').setColor('#7a4a1e');
@@ -249,7 +390,7 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
 export function makeWheelButton(scene, { x, y, size = 64, onClick, canTap = () => true }) {
   const button = scene.add.container(x, y);
   const r = size * 0.42;
-  const rim = drawRim(scene, r - 8).setScale(1);
+  const rim = drawRim(scene, r - 8);
   const face = drawFace(scene, r - 6, { icons: false });
   const hub = drawHub(scene, r * 0.24);
   const pointer = drawPointer(scene, 10);
