@@ -11,6 +11,7 @@ import { openLuckyWheel, makeWheelButton } from '../ui/LuckyWheel.js';
 import { openQuests, makeQuestButton } from '../ui/QuestBoard.js';
 import { openZoneComplete } from '../ui/Celebration.js';
 import { Unlocks } from '../core/Unlocks.js';
+import { artScale } from '../config/Assets.js';
 
 /** Map look for tougher levels. */
 const DIFFICULTY = {
@@ -32,6 +33,8 @@ const REVEAL_AHEAD = 9;
 const TOP_SPACE = 360;
 const BOTTOM_SPACE = 200;
 const MEADOW = 0x9fd987;
+// The flat grass at the bottom of the garden background picture (map/garden-bg.png).
+const GRASS = 0x58ad42;
 
 /**
  * Scrolling garden path. Level 1 is at the bottom; the path winds upwards.
@@ -107,13 +110,14 @@ export class MapScene extends Phaser.Scene {
     // Sky and hills at the very top: the end of the current garden.
     const skyH = 300;
     this.add.rectangle(0, 0, W, skyH, 0xd1eefa).setOrigin(0);
+    // The garden scene (sky, clouds, distant trees, rolling hills); its flat grass at the
+    // bottom (from HILLS_END down) fades into the meadow.
     const s = 0.5;
+    const HILLS_END = 150;
     this.add.tileSprite(W / 2, skyH, W, 1024 * s, 'bg-grass').setOrigin(0.5, 0.625).setTileScale(s, s);
-    this.add.rectangle(0, skyH, W, 40, 0x23c073).setOrigin(0);
-    const fade = this.add.graphics();
-    fade.fillGradientStyle(0x23c073, 0x23c073, MEADOW, MEADOW, 1).fillRect(0, skyH + 40, W, 160);
     [0.15, 0.6, 0.9].forEach((fx, i) => {
-      this.add.image(W * fx, 50 + i * 30, `bg-cloud${i + 1}`).setAlpha(0.9).setScale(0.8);
+      const key = `bg-cloud${i + 1}`;
+      this.add.image(W * fx, 50 + i * 30, key).setAlpha(0.9).setScale(0.8 * artScale(key)).setFlipX(i === 1);
     });
     this.add.text(W / 2, skyH - 120, 'More gardens coming soon!', textStyle(20, '#ffffff', {
       stroke: '#7a4a1e', strokeThickness: 6,
@@ -121,7 +125,7 @@ export class MapScene extends Phaser.Scene {
 
     // Each garden has its own meadow tint, blending softly into the next one.
     const tints = [0x9fd987, 0xc5d77e, 0x8fd3b0, 0xa8dc8a, 0xd2d49a, 0x86c48c, 0x9fd8c9, 0xd8da82, 0xb8d3dc];
-    const zoneTop = (zi) => (ZONES[zi + 1] ? this.nodes[ZONES[zi + 1].start].y + NODE_GAP / 2 : skyH + 40);
+    const zoneTop = (zi) => (ZONES[zi + 1] ? this.nodes[ZONES[zi + 1].start].y + NODE_GAP / 2 : skyH + HILLS_END);
     ZONES.forEach((zone, zi) => {
       const bottom = zi === 0 ? this.worldH : zoneTop(zi - 1);
       const top = zoneTop(zi);
@@ -134,7 +138,7 @@ export class MapScene extends Phaser.Scene {
     });
     // Hills at the top fade into the highest garden's meadow.
     const topTint = tints[(ZONES.length - 1) % tints.length];
-    this.add.graphics().fillGradientStyle(0x23c073, 0x23c073, topTint, topTint, 1).fillRect(0, skyH + 40, W, 160);
+    this.add.graphics().fillGradientStyle(GRASS, GRASS, topTint, topTint, 1).fillRect(0, skyH + HILLS_END, W, 160);
 
     // Meadow texture: soft lighter patches and little grass tufts.
     const meadow = this.add.graphics();
@@ -183,9 +187,9 @@ export class MapScene extends Phaser.Scene {
     }
 
     // Trees and bushes along both sides, kept away from the path.
-    const props = ['map-tree', 'map-treeLong', 'map-treePine', 'map-bush1', 'map-bush2', 'map-bush3', 'map-bush4', 'map-treeSmall2', 'map-fence'];
+    const props = ['map-tree', 'map-treeLong', 'map-treePine', 'map-bush1', 'map-bush2', 'map-bush3', 'map-bush4', 'map-treeSmall2', 'map-fence', 'map-flowers'];
     const placed = [];
-    for (let y = skyH + 160; y < this.worldH; y += 70) {
+    for (let y = skyH + HILLS_END + 160; y < this.worldH; y += 70) {
       for (let k = 0; k < 2; k += 1) {
         const x = rng.between(10, W - 10);
         // Props are drawn upwards from their base, so check the path over the prop's height too.
@@ -197,7 +201,7 @@ export class MapScene extends Phaser.Scene {
     }
     placed.sort((a, b) => a.y - b.y).forEach(({ x, y, key }) => {
       const scale = key.startsWith('map-tree') && !key.includes('Small') ? 0.6 : key.includes('Small') ? 1.4 : 0.8;
-      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale);
+      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale * artScale(key)).setFlipX(rng.frac() < 0.5);
     });
   }
 

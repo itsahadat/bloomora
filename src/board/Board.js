@@ -286,7 +286,7 @@ export class Board {
     this.emitters.leaf = make(0x4caf50, 'fx-petal', 300);
     this.emitters.grass = make(0x86c96b, 'fx-petal', 200);
 
-    // Kenney particle sprites (128px) for sparkles and twinkles.
+    // Particle sprites (128px, drawn in ui/FxArt.js) for sparkles and twinkles.
     const sparkle = (texture, config) => {
       const emitter = this.scene.add.particles(0, 0, texture, {
         lifespan: { min: 400, max: 800 },
@@ -312,7 +312,7 @@ export class Board {
     playSfx(this.scene, key, config);
   }
 
-  /** A one-shot Kenney sprite flash (glow, ring, magic star...) that grows and fades. */
+  /** A one-shot sprite flash (glow, ring, magic star...) that grows and fades. */
   flashSprite(texture, x, y, { size = CELL, toScale = 2, tint = 0xffffff, duration = 380, spin = 0, alpha = 0.95 } = {}) {
     const img = this.scene.add.image(x, y, texture).setTint(tint).setAlpha(alpha);
     const base = size / img.width;

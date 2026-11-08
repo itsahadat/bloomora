@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { playSfx, isAllMuted, setAllMuted } from '../core/Sound.js';
 import { Ads } from '../core/Ads.js';
+import { artScale } from '../config/Assets.js';
 import {
   BUTTON_COLORS, COLORS, buttonTexture, panelTexture, pillTexture, badgeTexture, glyphTexture,
   bigStarTexture, vignetteTexture, canvasTexture,
@@ -256,7 +257,8 @@ export function addGardenBackground(scene, { blur = false } = {}) {
   const depthShade = scene.add.graphics();
 
   const clouds = [1, 2, 3, 1].map((n, i) => {
-    const cloud = scene.add.image(0, 0, `bg-cloud${n}`).setAlpha(0.9);
+    const cloud = scene.add.image(0, 0, `bg-cloud${n}`).setAlpha(0.9).setFlipX(i % 2 === 1);
+    cloud.artScale = artScale(`bg-cloud${n}`);
     cloud.speed = 6 + i * 3;
     cloud.offset = i * 0.27;
     return cloud;
@@ -303,25 +305,28 @@ export function addGardenBackground(scene, { blur = false } = {}) {
       const s = Phaser.Math.Clamp(h / 1100, 0.5, 1.1);
       sky.setDisplaySize(w, horizon + 40);
       sun.setPosition(w * 0.78, h * 0.12).setDisplaySize(h * 0.5, h * 0.5);
-      ground.clear().fillStyle(0x3cc47a, 1).fillRect(0, horizon, w, h - horizon);
+      // Flat grass below the picture, matching the bottom of map/garden-bg.png.
+      ground.clear().fillStyle(0x50a63a, 1).fillRect(0, horizon, w, h - horizon);
       depthShade.clear();
       depthShade.fillGradientStyle(0x0f7a45, 0x0f7a45, 0x0f7a45, 0x0f7a45, 0, 0, 0.45, 0.45);
       depthShade.fillRect(0, horizon + 40, w, h - horizon - 40);
-      hills.setSize(w, 1024 * s).setPosition(w / 2, horizon);
-      hills.setTileScale(s, s);
-      hills.tilePositionX = (1024 - w / s) / 2;
+      // The garden picture (2048x1024, horizon 62.5% down) is scaled so its sky reaches the top.
+      const hs = Math.max(s, horizon / 640);
+      hills.setSize(w, 1024 * hs).setPosition(w / 2, horizon);
+      hills.setTileScale(hs, hs);
+      hills.tilePositionX = (2048 - w / hs) / 2;
       far.forEach((t, i) => {
         const fx = (i + 0.5) / far.length;
-        t.setPosition(w * fx + Math.sin(i * 7) * 30, horizon + 30 + (i % 2) * 18).setScale(s * (1.3 + (i % 3) * 0.25));
+        t.setPosition(w * fx + Math.sin(i * 7) * 30, horizon + 30 + (i % 2) * 18).setScale(s * (1.3 + (i % 3) * 0.25) * artScale(t.texture.key));
       });
       near.forEach((t, i) => {
         const left = i % 2 === 0;
         const k = Math.floor(i / 2);
         const tx = left ? w * (0.02 + k * 0.09) : w * (0.98 - k * 0.09);
-        t.setPosition(tx, h * (0.9 + k * 0.05)).setScale(s * (3.4 - k * 0.6)).setFlipX(!left);
+        t.setPosition(tx, h * (0.9 + k * 0.05)).setScale(s * (3.4 - k * 0.6) * artScale(t.texture.key)).setFlipX(!left);
       });
       clouds.forEach((cloud, i) => {
-        cloud.setScale(Math.max(0.6, Math.min(1.4, w / 900)));
+        cloud.setScale(Math.max(0.6, Math.min(1.4, w / 900)) * cloud.artScale);
         cloud.setPosition(w * ((cloud.offset + 0.1) % 1), h * (0.06 + (i % 3) * 0.08));
       });
       vignette.setDisplaySize(w, h);

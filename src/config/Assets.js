@@ -43,46 +43,49 @@ export function preloadJewelIcons(scene) {
   });
 }
 
-// Kenney assets (CC0, www.kenney.nl) copied into public/assets/kenney.
-const K = 'assets/kenney';
+// Map and background art (public/assets/map). The keys keep their old names, so the
+// scenes didn't change; ART_SCALE turns each big source image into the on-screen size
+// the layout was tuned for (a tree drawn at scale 1 is about 200px tall).
+const M = 'assets/map';
 
-export const KENNEY_IMAGES = {
-  'bg-grass': `${K}/bg/grass.png`,
-  'bg-cloud1': `${K}/bg/cloud1.png`,
-  'bg-cloud2': `${K}/bg/cloud2.png`,
-  'bg-cloud3': `${K}/bg/cloud3.png`,
-  'btn-green': `${K}/ui/btn_green.png`,
-  'btn-yellow': `${K}/ui/btn_yellow.png`,
-  'btn-blue': `${K}/ui/btn_blue.png`,
-  'btn-red': `${K}/ui/btn_red.png`,
-  'round-green': `${K}/ui/round_green.png`,
-  'round-yellow': `${K}/ui/round_yellow.png`,
-  'round-grey': `${K}/ui/round_grey.png`,
-  'round-red': `${K}/ui/round_red.png`,
-  'map-tree': `${K}/map/tree.png`,
-  'map-treeLong': `${K}/map/treeLong.png`,
-  'map-treePine': `${K}/map/treePine.png`,
-  'map-treeSmall1': `${K}/map/treeSmall_green1.png`,
-  'map-treeSmall2': `${K}/map/treeSmall_green2.png`,
-  'map-treeSmall3': `${K}/map/treeSmall_green3.png`,
-  'map-bush1': `${K}/map/bush1.png`,
-  'map-bush2': `${K}/map/bush2.png`,
-  'map-bush3': `${K}/map/bush3.png`,
-  'map-bush4': `${K}/map/bush4.png`,
-  'map-fence': `${K}/map/fence.png`,
-  'ui-star': `${K}/ui/star.png`,
-  'ui-star-grey': `${K}/ui/star_grey.png`,
-  'icon-repeat': `${K}/ui/icon_repeat.png`,
-  'icon-play': `${K}/ui/icon_play.png`,
-  'fx-star4': `${K}/fx/star_04.png`,
-  'fx-star6': `${K}/fx/star_06.png`,
-  'fx-glow': `${K}/fx/circle_05.png`,
-  'fx-ring': `${K}/fx/light_01.png`,
-  'fx-magic': `${K}/fx/magic_03.png`,
-  'fx-twirl': `${K}/fx/twirl_02.png`,
+export const MAP_IMAGES = {
+  'bg-grass': `${M}/garden-bg.png`,
+  'bg-cloud1': `${M}/cloud.png`,
+  'bg-cloud2': `${M}/cloud.png`,
+  'bg-cloud3': `${M}/cloud.png`,
+  'map-tree': `${M}/tree-round.png`,
+  'map-treeLong': `${M}/tree-tall.png`,
+  'map-treePine': `${M}/tree-pine.png`,
+  'map-treeSmall2': `${M}/tree-small.png`,
+  'map-bush1': `${M}/bush-wide.png`,
+  'map-bush2': `${M}/bush-round.png`,
+  'map-bush3': `${M}/bush-berry.png`,
+  'map-bush4': `${M}/grass-tuft.png`,
+  'map-fence': `${M}/fence.png`,
+  'map-flowers': `${M}/flower-patch.png`,
 };
 
-// Sound effects and music are synthesized at runtime (see core/Synth.js), so no audio files are loaded.
-export function preloadKenney(scene) {
-  Object.entries(KENNEY_IMAGES).forEach(([name, url]) => scene.load.image(name, url));
+/** Multiply a prop's layout scale by this to get the right size on screen. */
+export const ART_SCALE = {
+  'bg-cloud1': 0.47,
+  'bg-cloud2': 0.42,
+  'bg-cloud3': 0.5,
+  'map-tree': 0.224,
+  'map-treeLong': 0.263,
+  'map-treePine': 0.277,
+  'map-treeSmall2': 0.157,
+  'map-bush1': 0.247,
+  'map-bush2': 0.219,
+  'map-bush3': 0.259,
+  'map-bush4': 0.205,
+  'map-fence': 0.226,
+  'map-flowers': 0.236,
+};
+
+export const artScale = (key) => ART_SCALE[key] ?? 1;
+
+// Sound effects are files in public/assets/sfx or synthesized (see core/Sound.js).
+export function preloadMapArt(scene) {
+  Object.entries(MAP_IMAGES).forEach(([name, url]) => scene.load.image(name, url));
 }
+

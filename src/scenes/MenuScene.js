@@ -91,12 +91,10 @@ export class MenuScene extends Phaser.Scene {
       ['Bloomora', 22, '#7a4a1e'],
       ['A garden match puzzle', 15, '#9a6b3c'],
       ['', 10],
-      ['UI, backgrounds & particles', 15, '#7a4a1e'],
-      ['Kenney · www.kenney.nl (CC0)', 15, '#9a6b3c'],
-      ['Sounds & music synthesized in-game', 14, '#9a6b3c'],
+      ['Game, art & design', 15, '#7a4a1e'],
+      ['Bloomora', 15, '#9a6b3c'],
       ['', 6],
       ['Fonts: Lilita One & Fredoka (SIL OFL)', 14, '#9a6b3c'],
-      ['Bloom, fruit & booster art: Bloomora (custom)', 14, '#9a6b3c'],
     ];
     let y = top + 32;
     lines.forEach(([text, size, color]) => {
@@ -146,7 +144,7 @@ export class MenuScene extends Phaser.Scene {
     ['rose', 'strawberry', 'drop', 'sun', 'grape', 'kiwi'].forEach((type, i) => {
       const x = width * (0.1 + (i % 3) * 0.4 + (i > 2 ? 0.2 : 0));
       // The top row stays below the corner buttons.
-      const y = (i > 2 ? height * 0.78 : Math.max(height * 0.12, 72)) + (i % 2) * 30;
+      const y = (i > 2 ? height * 0.78 : Math.max(height * 0.12, 105)) + (i % 2) * 30;
       const bloom = this.add.image(x, y, `jewel-${type}`).setDisplaySize(56, 56).setAlpha(0.85);
       this.tweens.add({
         targets: bloom, y: y - 14, angle: { from: -8, to: 8 }, duration: 1600 + i * 180,

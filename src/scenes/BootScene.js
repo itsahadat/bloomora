@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
-import { preloadJewelIcons, preloadKenney } from '../config/Assets.js';
+import { preloadJewelIcons, preloadMapArt } from '../config/Assets.js';
 import { GAME_TITLE } from '../config/Constants.js';
 import { textStyle, titleStyle, ensureUiTextures, makeVivid, makeGameLogo } from '../ui/UI.js';
 import { canvasTexture, pillTexture } from '../ui/Skin.js';
 import { Board } from '../board/Board.js';
 import { Progress } from '../core/Progress.js';
 import { Platform } from '../core/Platform.js';
+import { ensureFxTextures } from '../ui/FxArt.js';
 
 const TIPS = [
   'Match 4 in a row to grow a line bloom!',
@@ -89,13 +90,14 @@ export class BootScene extends Phaser.Scene {
     });
 
     preloadJewelIcons(this);
-    preloadKenney(this);
+    preloadMapArt(this);
   }
 
   create() {
     makeVivid(this);
     Board.ensureTextures(this);
     ensureUiTextures(this);
+    ensureFxTextures(this);
     Platform.loadingStop();
     // A brand-new player goes straight into level 1 (the tutorial); everyone else gets the menu.
     const firstTime = Progress.starsFor(0) === 0;
