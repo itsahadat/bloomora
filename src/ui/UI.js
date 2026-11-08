@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { playSfx, isAllMuted, setAllMuted } from '../core/Sound.js';
+import { Ads } from '../core/Ads.js';
 import {
   BUTTON_COLORS, COLORS, buttonTexture, panelTexture, pillTexture, badgeTexture, glyphTexture,
   bigStarTexture, vignetteTexture, canvasTexture,
@@ -110,6 +111,46 @@ export function makeButton(scene, {
     bg.setTexture(buttonTexture(scene, width, height, c));
     text.setStroke(BUTTON_COLORS[c]?.text ?? '#21650f', text.style.strokeThickness);
   };
+  return button;
+}
+
+/**
+ * Purple "watch an ad" button with a little play icon. Shows a rewarded ad for
+ * `placement` and calls `onReward()` only if the player watched it to the end.
+ * Returns null when no ad can be shown, so callers can leave it out of the layout.
+ */
+export function makeAdButton(scene, {
+  x, y, width, height, label, placement, fontSize = 20, onReward,
+}) {
+  if (!Ads.canShow(placement)) return null;
+  let running = false;
+  const button = makeButton(scene, {
+    x, y, width, height, label, color: 'purple', fontSize,
+    onClick: async () => {
+      if (running) return;
+      running = true;
+      button.setAlpha(0.6);
+      const watched = await Ads.rewarded(placement);
+      running = false;
+      if (!button.active) return;
+      button.setAlpha(1);
+      if (watched) onReward?.(button);
+      else playSfx(scene, 'invalid');
+      // Used up today's ads for this spot: fade the button away.
+      if (!Ads.canShow(placement) && button.active) {
+        button.disableInteractive();
+        scene.tweens.add({ targets: button, alpha: 0, duration: 200, onComplete: () => button.setVisible(false) });
+      }
+    },
+  });
+  // Play icon (rounded square with a triangle) to the left of the label.
+  const s = Math.round(height * 0.46);
+  const icon = scene.add.graphics();
+  icon.fillStyle(0xffffff, 1).fillRoundedRect(-s / 2, -s / 2, s, s, s * 0.28);
+  icon.fillStyle(0x7a3cc8, 1).fillTriangle(-s * 0.16, -s * 0.24, -s * 0.16, s * 0.24, s * 0.26, 0);
+  button.label.setX(s / 2 + 4);
+  icon.setPosition(button.label.x - button.label.width / 2 - s / 2 - 8, -3);
+  button.add(icon);
   return button;
 }
 
@@ -445,7 +486,9 @@ export function showModal(scene, { title, color = 'green', width = 340, height =
     .setDepth(depth).setInteractive().setScrollFactor(0);
   scene.tweens.add({ targets: overlay, fillAlpha: 0.55, duration: 220 });
 
-  const panelW = Math.min(W - 24, width);
+  // The panel is always built at its design width; narrow phones scale the whole
+  // panel down (below) so rows of icons and buttons never spill past the border.
+  const panelW = width;
   const panel = scene.add.container(W / 2, H / 2).setDepth(depth + 1).setScrollFactor(0);
   const bg = scene.add.image(0, 0, panelTexture(scene, panelW, height));
   const titleText = scene.add.text(0, -height / 2 + 40, title, textStyle(30, TITLE_COLORS[color] ?? COLORS.title, {
@@ -468,7 +511,7 @@ export function showModal(scene, { title, color = 'green', width = 340, height =
   panel.list.forEach((child) => child.setScrollFactor?.(0));
 
   // Tall popups shrink to fit short screens (small phones in landscape or with browser bars).
-  const fit = Math.min(1, (H - 16) / (height + 40));
+  const fit = Math.min(1, (H - 16) / (height + 40), (W - 20) / panelW);
   panel.setScale(0.6 * fit).setAlpha(0);
   scene.tweens.add({ targets: panel, scale: fit, alpha: 1, duration: 320, ease: 'Back.easeOut' });
   playSfx(scene, 'swap', { volume: 0.6, detune: 400 });

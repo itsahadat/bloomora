@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
-import { textStyle, titleStyle, makeButton, makeRoundButton, showModal, boosterIcon } from './UI.js';
+import { textStyle, titleStyle, makeButton, makeRoundButton, makeAdButton, showModal, boosterIcon } from './UI.js';
 import { canvasTexture } from './Skin.js';
 import { flyCoins } from './Shop.js';
 import { Wallet } from '../core/Wallet.js';
 import { Inventory, BOOSTERS } from '../core/Inventory.js';
 import { Wheel, WHEEL_PRIZES, SPIN_PRICE } from '../core/Wheel.js';
 import { playSfx } from '../core/Sound.js';
+import { Ads } from '../core/Ads.js';
 
 const SLICE = 360 / WHEEL_PRIZES.length;
 const PETALS = [0xff8fc1, 0xffe08a, 0x9be57a, 0x8fd3ff];
@@ -248,7 +249,9 @@ function drawPointer(scene, size) {
  * `coinTarget()` returns where won coins fly to (the coin badge).
  */
 export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
-  const modal = showModal(scene, { title: 'Lucky Wheel', color: 'yellow', width: 360, height: 480, depth: 130 });
+  // An extra "spin for an ad" button sits under the main one when ads are available.
+  const adRow = Ads.canShow('spin') ? 62 : 0;
+  const modal = showModal(scene, { title: 'Lucky Wheel', color: 'yellow', width: 360, height: 480 + adRow, depth: 130 });
   const { panel, top, width } = modal;
   const R = Math.round(Math.min(122, (width - 64) / 2));
   const cy = top + R + 26;
@@ -289,6 +292,15 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
     button.label.x = free ? 0 : -16;
     coin.x = button.label.width / 2 + 4;
   };
+
+  const adButton = adRow ? makeAdButton(scene, {
+    x: 0, y: cy + R + 86 + adRow, width: 220, height: 50, label: 'Free Spin', placement: 'spin', fontSize: 22,
+    onReward: () => spin(true),
+  }) : null;
+  const refreshAdButton = () => {
+    // Only offered once the day's free spin is used, and hidden while the wheel turns.
+    if (adButton?.active) adButton.setVisible(!Wheel.hasFreeSpin() && !spinning && Ads.canShow('spin'));
+  };
   refreshButton();
 
   let spinning = false;
@@ -301,7 +313,8 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
       onClose?.();
     },
   });
-  panel.add([rim, ...bulbs, face, hub, pointer, info, button, close]);
+  panel.add([rim, ...bulbs, face, hub, pointer, info, button, close, ...(adButton ? [adButton] : [])]);
+  refreshAdButton();
 
   const award = (index) => {
     const prize = WHEEL_PRIZES[index];
@@ -331,13 +344,17 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
 
     spinning = false;
     refreshButton();
+    refreshAdButton();
     button.setAlpha(1);
     close.setAlpha(1);
   };
 
-  const spin = () => {
+  /** `fromAd`: the player just watched an ad, so this spin is free. */
+  const spin = (fromAd = false) => {
     if (spinning) return;
-    if (Wheel.hasFreeSpin()) {
+    if (fromAd) {
+      // Paid for by the ad.
+    } else if (Wheel.hasFreeSpin()) {
       Wheel.useFreeSpin();
     } else if (!Wallet.spend(SPIN_PRICE)) {
       info.setText('Not enough coins yet!').setColor('#d12a3a');
@@ -346,6 +363,7 @@ export function openLuckyWheel(scene, { coinTarget, onClose } = {}) {
       return;
     }
     spinning = true;
+    refreshAdButton();
     button.setAlpha(0.55);
     close.setAlpha(0.4);
     info.setText('Good luck!').setColor('#7a4a1e');

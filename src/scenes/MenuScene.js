@@ -158,8 +158,10 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    this.add.text(width * 0.5, height * 0.22 + size * 0.72, 'Bloom your garden with brilliant matches', titleStyle(20, '#2c861b'))
+    const tagline = this.add.text(width * 0.5, height * 0.22 + size * 0.72, 'Bloom your garden with brilliant matches', titleStyle(20, '#2c861b'))
       .setOrigin(0.5);
+    // Keep a margin on narrow phones instead of running edge to edge.
+    if (tagline.width > width - 48) tagline.setScale((width - 48) / tagline.width);
 
     const index = Progress.currentLevelIndex(LEVELS.length);
     const level = LEVELS[index];

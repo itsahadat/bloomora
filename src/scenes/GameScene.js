@@ -15,8 +15,9 @@ const FEATURES = {
 import { Progress } from '../core/Progress.js';
 import {
   textStyle, titleStyle, makeButton, makeRoundButton, addGardenBackground, showModal, makeBoosterButton, boosterIcon,
-  makeVivid, makeMuteButton, makeCountBadge, showTooltip, COLORS,
+  makeVivid, makeMuteButton, makeCountBadge, showTooltip, makeAdButton, COLORS,
 } from '../ui/UI.js';
+import { Ads } from '../core/Ads.js';
 import {
   cardTexture, insetTexture, panelTexture, raysTexture, bigStarTexture,
 } from '../ui/Skin.js';
@@ -69,6 +70,8 @@ export class GameScene extends Phaser.Scene {
     this.starScores = [this.level.moves * 100, this.level.moves * 200, this.level.moves * 290];
     this.starsLit = 0;
     this.ended = false;
+    // The free "+3 Moves for an ad" continue is offered once per attempt.
+    this.adContinueUsed = false;
     // Win streak gifts for this attempt, and quest progress waiting to be saved.
     this.streakGifts = Streak.gifts();
     this.tally = {};
@@ -620,26 +623,41 @@ Tap to use it.`);
       }).then(async (result) => {
         await this.showVictory();
         return result;
-      }).then(({ stars, reward, coins, firstClear }) => this.showPopup({
-        title: 'Garden Bloomed!',
-        subtitle: 'Score ' + this.score.toLocaleString(),
-        rewards: [
-          { icon: 'ui-coin', text: `+${coins}`, coins },
-          ...(reward ? [{ icon: boosterIcon(reward), text: '+1' }] : []),
-        ],
-        stars,
-        buttons: [
-          hasNext
-            ? {
-              label: 'Next Level',
-              onClick: () => (Lives.count() > 0
-                ? this.scene.restart({ levelIndex: this.levelIndex + 1 })
-                : this.goToMap(this.levelIndex + 1, firstClear)),
-            }
-            : { label: 'Replay', onClick: () => this.restartLevel() },
-          { label: 'Map', color: 'blue', onClick: () => this.goToMap(this.levelIndex + 1, firstClear) },
-        ],
-      }));
+      }).then(({ stars, reward, coins, firstClear }) => {
+        const coinChip = { icon: 'ui-coin', text: `+${coins}`, coins };
+        return this.showPopup({
+          title: 'Garden Bloomed!',
+          subtitle: 'Score ' + this.score.toLocaleString(),
+          rewards: [
+            coinChip,
+            ...(reward ? [{ icon: boosterIcon(reward), text: '+1' }] : []),
+          ],
+          stars,
+          buttons: [
+            {
+              label: `Double Coins`,
+              ad: 'double',
+              onClick: (_close, btn) => {
+                Wallet.add(coins);
+                playSfx(this, 'coin');
+                coinChip.labelText?.setText(`+${coins * 2}`);
+                if (coinChip.chip) this.tweens.add({ targets: coinChip.chip, scale: 1.25, duration: 160, yoyo: true, ease: 'Back.easeOut' });
+                btn.disableInteractive();
+                this.tweens.add({ targets: btn, alpha: 0, duration: 200, onComplete: () => btn.setVisible(false) });
+              },
+            },
+            hasNext
+              ? {
+                label: 'Next Level',
+                onClick: () => (Lives.count() > 0
+                  ? this.scene.restart({ levelIndex: this.levelIndex + 1 })
+                  : this.goToMap(this.levelIndex + 1, firstClear)),
+              }
+              : { label: 'Replay', onClick: () => this.restartLevel() },
+            { label: 'Map', color: 'blue', onClick: () => this.goToMap(this.levelIndex + 1, firstClear) },
+          ],
+        });
+      });
     } else {
       // The life is only lost if the player gives up; +3 Moves lets them keep going.
       this.time.delayedCall(400, () => playSfx(this, 'lose'));
@@ -647,9 +665,13 @@ Tap to use it.`);
       const extra = Inventory.count('moves');
       const buttons = [];
       if (extra > 0) {
-        buttons.push({ label: `+3 Moves (${extra} left)`, color: 'green', onClick: (close) => this.continueWithMoves(close) });
+        buttons.push({ label: `+3 Moves (${extra} left)`, color: 'green', onClick: (close) => this.continueWithMoves(close, 'booster') });
       } else if (Wallet.count() >= CONTINUE_PRICE) {
-        buttons.push({ label: `+3 Moves · ${CONTINUE_PRICE} coins`, color: 'green', onClick: (close) => this.continueWithMoves(close, true) });
+        buttons.push({ label: `+3 Moves · ${CONTINUE_PRICE} coins`, color: 'green', onClick: (close) => this.continueWithMoves(close, 'coins') });
+      }
+      // One free continue per attempt for watching an ad.
+      if (!this.adContinueUsed) {
+        buttons.push({ label: '+3 Moves', ad: 'moves', onClick: (close) => { this.adContinueUsed = true; this.continueWithMoves(close, 'ad'); } });
       }
       buttons.push(
         { label: 'Try Again', color: 'yellow', onClick: () => { this.giveUp(); this.restartLevel(); } },
@@ -665,9 +687,14 @@ Tap to use it.`);
     }
   }
 
-  /** Spend a +3 Moves booster to keep playing after running out. */
-  continueWithMoves(closePopup, payWithCoins = false) {
-    if (payWithCoins ? !Wallet.spend(CONTINUE_PRICE) : !Inventory.use('moves')) return;
+  /**
+   * Keep playing after running out: +3 moves paid with a booster, with coins,
+   * or free after a watched ad (`source`: 'booster' | 'coins' | 'ad').
+   */
+  continueWithMoves(closePopup, source = 'booster') {
+    if (source === 'coins' && !Wallet.spend(CONTINUE_PRICE)) return;
+    if (source === 'booster' && !Inventory.use('moves')) return;
+    const payWithCoins = source === 'coins';
     closePopup();
     this.ended = false;
     this.board.locked = false;
@@ -1058,7 +1085,9 @@ Tap to use it.`);
   }
 
   /** Results / out-of-moves popup on the wooden panel. */
-  showPopup({ title, subtitle, stars, buttons, rewards = [], missing = [] }) {
+  showPopup({ title, subtitle, stars, buttons: allButtons, rewards = [], missing = [] }) {
+    // Ad buttons only take a row when an ad can actually be shown.
+    const buttons = allButtons.filter((b) => !b.ad || Ads.canShow(b.ad));
     const height = 150 + (stars !== null ? 96 : 0) + (rewards.length ? 58 : 0) + (missing.length ? 96 : 0) + buttons.length * 64;
     const modal = showModal(this, { title, color: stars !== null ? 'yellow' : 'red', width: 370, height });
     const { panel, top, width: panelW } = modal;
@@ -1110,6 +1139,9 @@ Tap to use it.`);
         const icon = this.add.image(-chipW / 2 + 24, 0, rw.icon).setDisplaySize(36, 36);
         const label = this.add.text(-chipW / 2 + 48, 0, rw.text, textStyle(21, '#b8740b')).setOrigin(0, 0.5);
         chip.add([bg, icon, label]).setScale(0);
+        // Let callers update the chip later (e.g. "Double Coins").
+        rw.chip = chip;
+        rw.labelText = label;
         panel.add(chip);
         this.tweens.add({
           targets: chip, scale: 1, duration: 320, delay: 1400 + i * 200, ease: 'Back.easeOut',
@@ -1121,10 +1153,13 @@ Tap to use it.`);
 
     y += 22;
     buttons.forEach((b, i) => {
-      panel.add(makeButton(this, {
-        x: 0, y: y + i * 64, width: Math.min(260, panelW - 80), height: 54, label: b.label,
-        color: b.color ?? 'green', fontSize: 23, onClick: () => b.onClick(modal.close),
-      }));
+      const spec = {
+        x: 0, y: y + i * 64, width: Math.min(260, panelW - 80), height: 54, label: b.label, fontSize: 23,
+      };
+      const button = b.ad
+        ? makeAdButton(this, { ...spec, placement: b.ad, onReward: (btn) => b.onClick(modal.close, btn) })
+        : makeButton(this, { ...spec, color: b.color ?? 'green', onClick: () => b.onClick(modal.close) });
+      if (button) panel.add(button);
     });
   }
 }

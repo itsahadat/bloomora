@@ -1,10 +1,11 @@
-import { textStyle, makeButton, makeRoundButton, showModal, boosterIcon } from './UI.js';
+import { textStyle, makeButton, makeRoundButton, makeAdButton, showModal, boosterIcon } from './UI.js';
 import { pillTexture } from './Skin.js';
 import { Wallet } from '../core/Wallet.js';
 import { Inventory, BOOSTERS } from '../core/Inventory.js';
 import { Lives, UNLIMITED_MS, formatTimer } from '../core/Lives.js';
 import { Daily, DAILY_REWARDS } from '../core/Daily.js';
 import { playSfx } from '../core/Sound.js';
+import { Ads, AD_COINS } from '../core/Ads.js';
 
 export const LIVES_PRICE = 250;
 export const ONE_LIFE_PRICE = 90;
@@ -105,7 +106,9 @@ export function openShop(scene, { onClose } = {}) {
   const rows = [
     ...Object.keys(BOOSTERS).map((kind) => ({
       kind, icon: boosterIcon(kind), name: BOOSTERS[kind].name, price: BOOSTERS[kind].price,
-      owned: () => `Have ${Inventory.count(kind)}`,
+      owned: () => `×${Inventory.count(kind)}`,
+      // What it does, so new players know what they are buying.
+      help: BOOSTERS[kind].help,
       buy: () => Inventory.add(kind, 1),
       can: () => true,
     })),
@@ -145,7 +148,13 @@ export function openShop(scene, { onClose } = {}) {
     const icon = scene.add.image(left + 28, y, row.icon).setDisplaySize(38, 38);
     const mark = row.infinite ? [scene.add.text(left + 28, y - 3, '∞', textStyle(22, '#ffffff', { fontFamily: 'Arial, sans-serif', fontStyle: 'bold', stroke: '#b02a3c', strokeThickness: 4 })).setOrigin(0.5)] : [];
     const name = scene.add.text(left + 56, y - 9, row.name, textStyle(16, '#7a4a1e')).setOrigin(0, 0.5);
-    const owned = scene.add.text(left + 56, y + 11, row.owned(), textStyle(12, '#b08a60')).setOrigin(0, 0.5);
+    // Boosters: "Trowel ×16" on top and the help line below; lives keep their status line below.
+    const owned = row.help
+      ? scene.add.text(name.x + name.width + 6, y - 9, row.owned(), textStyle(14, '#b8740b')).setOrigin(0, 0.5)
+      : scene.add.text(left + 56, y + 11, row.owned(), textStyle(12, '#b08a60')).setOrigin(0, 0.5);
+    const textMaxW = (width / 2 - 70 - 52) - (left + 56);
+    const help = row.help ? [scene.add.text(left + 56, y + 11, row.help, textStyle(12, '#b08a60')).setOrigin(0, 0.5)] : [];
+    help.forEach((t) => t.width > textMaxW && t.setScale(textMaxW / t.width));
     const btn = makeButton(scene, {
       x: width / 2 - 70, y, width: 96, height: 40, label: `${row.price}`, color: 'yellow', fontSize: 18,
       onClick: () => {
@@ -171,7 +180,7 @@ export function openShop(scene, { onClose } = {}) {
     });
     btn.label.setX(12);
     btn.add(scene.add.image(-26, -3, 'ui-coin').setDisplaySize(22, 22));
-    panel.add([bg, icon, ...mark, name, owned, btn]);
+    panel.add([bg, icon, ...mark, name, owned, ...help, btn]);
   });
 
   panel.add(makeButton(scene, {
@@ -216,7 +225,8 @@ export function openDailyReward(scene, { coinTarget, onClose } = {}) {
   panel.add(gift);
 
   const gap = 4;
-  const box = Math.min(46, (width - 28 - gap * 6) / 7);
+  // Leave room for the panel's wooden border on both sides.
+  const box = Math.min(46, (width - 64 - gap * 6) / 7);
   const rowW = box * 7 + gap * 6;
   DAILY_REWARDS.forEach((reward, i) => {
     const x = -rowW / 2 + box / 2 + i * (box + gap);
@@ -272,14 +282,37 @@ export function openCoinPacks(scene, { onClose } = {}) {
     { coins: 3000, label: 'Barrow', tag: 'Best value' },
   ];
   const rowH = 66;
-  const height = 64 + 40 + packs.length * rowH + 70;
+  const freeRow = Ads.canShow('coins') ? rowH : 0;
+  const height = 64 + 40 + freeRow + packs.length * rowH + 70;
   const modal = showModal(scene, { title: 'Coin Packs', color: 'blue', width: 340, height, depth: 140 });
   const { panel, top, width } = modal;
   const note = scene.add.text(0, top + 22, 'The coin store is coming soon!', textStyle(15, '#9a6b3c')).setOrigin(0.5);
   panel.add(note);
   const left = -width / 2 + 20;
+
+  if (freeRow) {
+    const y = top + 48 + rowH / 2;
+    const bg = scene.add.graphics();
+    bg.fillStyle(0xf1e4ff, 1).fillRoundedRect(left, y - rowH / 2 + 4, width - 40, rowH - 8, 14);
+    const icon = scene.add.image(left + 34, y, 'ui-coin').setDisplaySize(34, 34);
+    const name = scene.add.text(left + 72, y - 10, `${AD_COINS} coins`, textStyle(18, '#b8740b')).setOrigin(0, 0.5);
+    const sub = scene.add.text(left + 72, y + 12, '', textStyle(12, '#8a5cc0')).setOrigin(0, 0.5);
+    const refreshSub = () => sub.setText(`Free · ${Ads.left('coins')} left today`);
+    refreshSub();
+    const btn = makeAdButton(scene, {
+      x: width / 2 - 66, y, width: 88, height: 40, label: 'Free', placement: 'coins', fontSize: 17,
+      onReward: () => {
+        const to = { x: scene.scale.width - 80, y: 34 };
+        const from = { x: panel.x + icon.x * panel.scale, y: panel.y + y * panel.scale };
+        flyCoins(scene, from, to, AD_COINS, () => Wallet.add(AD_COINS));
+        refreshSub();
+      },
+    });
+    panel.add([bg, icon, name, sub, ...(btn ? [btn] : [])]);
+  }
+
   packs.forEach((pack, i) => {
-    const y = top + 48 + i * rowH + rowH / 2;
+    const y = top + 48 + freeRow + i * rowH + rowH / 2;
     const bg = scene.add.graphics();
     bg.fillStyle(i % 2 ? 0xfdf4e0 : 0xf4ecd8, 1).fillRoundedRect(left, y - rowH / 2 + 4, width - 40, rowH - 8, 14);
     const pile = scene.add.container(left + 34, y);
@@ -313,7 +346,9 @@ export function openCoinPacks(scene, { onClose } = {}) {
  * or 30 minutes of unlimited lives. `onLives()` runs once the player has a life again.
  */
 export function openNoLives(scene, { onLives, onClose, closeLabel = 'Wait' } = {}) {
-  const modal = showModal(scene, { title: 'Out of Lives', color: 'red', width: 340, height: 455, depth: 140 });
+  // Watching an ad for one life takes an extra row at the top of the offers.
+  const adRow = Ads.canShow('life') ? 58 : 0;
+  const modal = showModal(scene, { title: 'Out of Lives', color: 'red', width: 340, height: 455 + adRow, depth: 140 });
   const { panel, top } = modal;
   const heart = scene.add.image(0, top + 44, 'ui-heart-empty').setDisplaySize(60, 60);
   scene.tweens.add({ targets: heart, scale: heart.scale * 1.08, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -351,11 +386,20 @@ export function openNoLives(scene, { onLives, onClose, closeLabel = 'Wait' } = {
     btn.add(scene.add.image(14 - btn.label.width / 2 - 22, -3, 'ui-coin').setDisplaySize(26, 26));
     return btn;
   };
+  const adButton = adRow ? makeAdButton(scene, {
+    x: 0, y: top + 164, width: 250, height: 50, label: '+1 Life', placement: 'life', fontSize: 18,
+    onReward: () => {
+      Lives.addOne();
+      playSfx(scene, 'bloom');
+      finish(true);
+    },
+  }) : null;
   panel.add([heart, timer, coins,
-    offer(top + 164, '+1 Life', ONE_LIFE_PRICE, 'green', () => Lives.addOne()),
-    offer(top + 222, 'Full Refill', LIVES_PRICE, 'green', () => Lives.refill()),
-    offer(top + 280, 'Unlimited 30 min', UNLIMITED_PRICE, 'yellow', () => Lives.addUnlimited(UNLIMITED_MS)),
-    makeButton(scene, { x: 0, y: top + 344, width: 250, height: 48, label: closeLabel, color: 'blue', fontSize: 19, onClick: () => finish(false) }),
+    ...(adButton ? [adButton] : []),
+    offer(top + 164 + adRow, '+1 Life', ONE_LIFE_PRICE, 'green', () => Lives.addOne()),
+    offer(top + 222 + adRow, 'Full Refill', LIVES_PRICE, 'green', () => Lives.refill()),
+    offer(top + 280 + adRow, 'Unlimited 30 min', UNLIMITED_PRICE, 'yellow', () => Lives.addUnlimited(UNLIMITED_MS)),
+    makeButton(scene, { x: 0, y: top + 344 + adRow, width: 250, height: 48, label: closeLabel, color: 'blue', fontSize: 19, onClick: () => finish(false) }),
   ]);
   update();
   pin(panel);

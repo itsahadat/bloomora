@@ -305,7 +305,8 @@ export class MapScene extends Phaser.Scene {
       const n = this.nodes[zone.start];
       if (!n) return;
       const { width: W } = this.scale;
-      const sx = n.x > W / 2 ? Math.max(80, n.x - 150) : Math.min(W - 80, n.x + 150);
+      // The sign board is 164px wide: keep all of it on screen on narrow phones.
+      const sx = n.x > W / 2 ? Math.max(90, n.x - 150) : Math.min(W - 90, n.x + 150);
       const sy = n.y + 50;
       const sign = this.add.graphics();
       sign.fillStyle(0x2f6b2a, 0.3).fillEllipse(sx, sy + 40, 40, 10);
