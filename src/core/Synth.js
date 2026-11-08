@@ -56,6 +56,21 @@ export function getMusicBus() {
   return musicBus;
 }
 
+/**
+ * Play a decoded audio file on the sound-effects bus.
+ * `rate` changes pitch and speed together (2 = an octave up).
+ */
+export function playBuffer(buffer, { vol = 1, rate = 1 } = {}) {
+  if (!ctx || !buffer) return;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = rate;
+  const gain = ctx.createGain();
+  gain.gain.value = vol;
+  src.connect(gain).connect(sfxBus);
+  src.start();
+}
+
 // ---------------------------------------------------------------- notes
 
 const PENTA = [0, 2, 4, 7, 9];
