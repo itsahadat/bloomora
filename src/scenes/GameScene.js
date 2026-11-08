@@ -197,7 +197,20 @@ export class GameScene extends Phaser.Scene {
     this.scoreCard.add(this.scoreBar);
 
     this.pauseButton = makeRoundButton(this, { x: 0, y: 0, size: 48, label: '≡', color: 'green', onClick: () => this.openPause() });
-    this.muteButton = makeMuteButton(this, { x: 0, y: 0, size: 48 });
+    // The sound settings pause play while they're open, like the pause menu.
+    let wasLocked = false;
+    this.muteButton = makeMuteButton(this, {
+      x: 0, y: 0, size: 48,
+      onOpen: () => {
+        wasLocked = this.board.locked;
+        this.board.locked = true;
+        Platform.gameplayStop();
+      },
+      onClose: () => {
+        this.board.locked = wasLocked;
+        if (!this.ended) Platform.gameplayStart();
+      },
+    });
 
     this.hud.add([this.movesBubble, this.goalCard, this.scoreCard, this.pauseButton, this.muteButton]);
   }
@@ -450,23 +463,23 @@ Tap to use it.`);
       this.pauseOpen = false;
       Platform.gameplayStart();
     };
-    const soundLabel = () => (isMuted() ? 'Sound: Off' : 'Sound: On');
+    const soundLabel = () => (isMuted() ? 'Effects: Off' : 'Effects: On');
     const musicLabel = () => (isMusicMuted() ? 'Music: Off' : 'Music: On');
     const sound = makeButton(this, {
-      x: -70, y: top + 40, width: 128, height: 50, label: soundLabel(), color: isMuted() ? 'grey' : 'blue', fontSize: 17,
+      x: 70, y: top + 40, width: 128, height: 50, label: soundLabel(), color: isMuted() ? 'grey' : 'green', fontSize: 17,
       onClick: () => {
         setMuted(!isMuted());
         sound.label.setText(soundLabel());
-        sound.setColor(isMuted() ? 'grey' : 'blue');
+        sound.setColor(isMuted() ? 'grey' : 'green');
         this.muteButton.refresh();
       },
     });
     const music = makeButton(this, {
-      x: 70, y: top + 40, width: 128, height: 50, label: musicLabel(), color: isMusicMuted() ? 'grey' : 'blue', fontSize: 17,
+      x: -70, y: top + 40, width: 128, height: 50, label: musicLabel(), color: isMusicMuted() ? 'grey' : 'green', fontSize: 17,
       onClick: () => {
         setMusicMuted(!isMusicMuted());
         music.label.setText(musicLabel());
-        music.setColor(isMusicMuted() ? 'grey' : 'blue');
+        music.setColor(isMusicMuted() ? 'grey' : 'green');
         this.muteButton.refresh();
       },
     });

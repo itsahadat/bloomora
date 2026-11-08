@@ -45,23 +45,25 @@ export class MenuScene extends Phaser.Scene {
   openSettings() {
     const modal = showModal(this, { title: 'Settings', color: 'yellow', width: 320, height: 396 });
     const { panel, top } = modal;
-    const soundLabel = () => (isMuted() ? 'Sound: Off' : 'Sound: On');
-    const sound = makeButton(this, {
-      x: 0, y: top + 50, width: 230, height: 52, label: soundLabel(), color: isMuted() ? 'blue' : 'green', fontSize: 21,
-      onClick: () => {
-        setMuted(!isMuted());
-        sound.label.setText(soundLabel());
-        this.muteButton?.refresh();
-        playSfx(this, 'pop', { step: 4 });
-      },
-    });
     const musicLabel = () => (isMusicMuted() ? 'Music: Off' : 'Music: On');
     const music = makeButton(this, {
-      x: 0, y: top + 116, width: 230, height: 52, label: musicLabel(), color: 'green', fontSize: 21,
+      x: 0, y: top + 50, width: 230, height: 52, label: musicLabel(), color: isMusicMuted() ? 'grey' : 'green', fontSize: 21,
       onClick: () => {
         setMusicMuted(!isMusicMuted());
         music.label.setText(musicLabel());
+        music.setColor(isMusicMuted() ? 'grey' : 'green');
         this.muteButton?.refresh();
+      },
+    });
+    const soundLabel = () => (isMuted() ? 'Sound Effects: Off' : 'Sound Effects: On');
+    const sound = makeButton(this, {
+      x: 0, y: top + 116, width: 230, height: 52, label: soundLabel(), color: isMuted() ? 'grey' : 'green', fontSize: 19,
+      onClick: () => {
+        setMuted(!isMuted());
+        sound.label.setText(soundLabel());
+        sound.setColor(isMuted() ? 'grey' : 'green');
+        this.muteButton?.refresh();
+        playSfx(this, 'pop', { step: 4 });
       },
     });
     const credits = makeButton(this, {

@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { playSfx, isAllMuted, setAllMuted } from '../core/Sound.js';
+import {
+  playSfx, isAllMuted, isMuted, setMuted, isMusicMuted, setMusicMuted,
+} from '../core/Sound.js';
 import { Ads } from '../core/Ads.js';
 import { artScale } from '../config/Assets.js';
 import {
@@ -191,8 +193,52 @@ export function makeRoundButton(scene, {
   return button;
 }
 
-/** Speaker button: one tap mutes / unmutes all sound effects and music. */
-export function makeMuteButton(scene, { x, y, size = 44 }) {
+/**
+ * Sound settings popup: background music and sound effects switch on and off separately.
+ * `onChange()` runs after every switch (e.g. to refresh a speaker icon).
+ */
+export function openSoundSettings(scene, { onChange, onClose, depth = 150 } = {}) {
+  const modal = showModal(scene, { title: 'Sound', color: 'blue', width: 320, height: 268, depth });
+  const { panel, top } = modal;
+  const row = (y, label, icon, isOff, setOff) => {
+    const bg = scene.add.graphics();
+    bg.fillStyle(0xf4ecd8, 1).fillRoundedRect(-130, y - 30, 260, 60, 16);
+    const img = scene.add.image(-104, y, icon).setDisplaySize(34, 34);
+    const text = scene.add.text(-80, y, label, textStyle(19, '#7a4a1e')).setOrigin(0, 0.5);
+    const toggle = makeButton(scene, {
+      x: 82, y, width: 84, height: 44, label: '', color: 'green', fontSize: 19,
+      onClick: () => {
+        setOff(!isOff());
+        refresh();
+        onChange?.();
+        playSfx(scene, 'pop', { step: 6 });
+      },
+    });
+    const refresh = () => {
+      const off = isOff();
+      toggle.label.setText(off ? 'Off' : 'On');
+      toggle.setColor(off ? 'grey' : 'green');
+      img.setAlpha(off ? 0.4 : 1);
+    };
+    refresh();
+    panel.add([bg, img, text, toggle]);
+  };
+  row(top + 38, 'Music', 'ui-sound-on', isMusicMuted, setMusicMuted);
+  row(top + 110, 'Sound Effects', 'ui-sound-on', isMuted, setMuted);
+  panel.add(makeRoundButton(scene, {
+    x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red',
+    onClick: () => {
+      modal.close();
+      onClose?.();
+    },
+  }));
+  // Works on scrolling scenes (the map) too.
+  panel.setScrollFactor?.(0, 0, true);
+  return modal;
+}
+
+/** Speaker button: opens the sound settings (music and effects on/off). Grey when both are off. */
+export function makeMuteButton(scene, { x, y, size = 44, onOpen, onClose }) {
   const button = scene.add.container(x, y);
   const on = buttonTexture(scene, size, size, 'yellow', size * 0.3);
   const off = buttonTexture(scene, size, size, 'grey', size * 0.3);
@@ -206,9 +252,8 @@ export function makeMuteButton(scene, { x, y, size = 44 }) {
     bg.setTexture(muted ? off : on);
   };
   pressable(scene, button, () => {
-    setAllMuted(!isAllMuted());
-    refresh();
-    playSfx(scene, 'pop', { step: 6 });
+    onOpen?.();
+    openSoundSettings(scene, { onChange: refresh, onClose });
   });
   refresh();
   button.refresh = refresh;
