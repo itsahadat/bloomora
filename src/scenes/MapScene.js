@@ -460,13 +460,14 @@ export class MapScene extends Phaser.Scene {
 
     // Smooth mist: clear at the edge, solid higher up (one stretched gradient, no bands).
     const MIST = 620;
-    const fog = canvasTexture(this, 'map-fog', 4, 256, (ctx) => {
-      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+    // 6x250 on purpose: power-of-two textures wrap, which bled the opaque top row into a line at the edge.
+    const fog = canvasTexture(this, 'map-fog', 6, 250, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, 250);
       grad.addColorStop(0, 'rgba(244,249,255,1)');
       grad.addColorStop(0.45, 'rgba(244,249,255,0.85)');
       grad.addColorStop(1, 'rgba(244,249,255,0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 4, 256);
+      ctx.fillRect(0, 0, 6, 250);
     });
     const solid = this.add.rectangle(0, -edge - 400, W, edge + 400 - MIST + 2, 0xf4f9ff).setOrigin(0);
     const mist = this.add.image(0, -MIST, fog).setOrigin(0).setDisplaySize(W, MIST);
