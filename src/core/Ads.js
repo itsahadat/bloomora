@@ -145,11 +145,14 @@ const crazyAds = {
 };
 
 /**
- * AdMob rewarded video for the Android app. Until real IDs are set (VITE_ADMOB_REWARDED_ID
- * at build time), Google's public test ad unit is used: it always serves a "Test Ad".
+ * AdMob rewarded video for the Android app ("Bloomora Rewarded" ad unit; the app ID is in
+ * android/app/src/main/res/values/strings.xml). Emulators always get Google's test ads.
+ * Build with VITE_ADMOB_TEST=1 to force test ads on a real phone too, so you never click your own ads.
  * One ad is kept loaded in the background so the button can show it at once.
  */
-const ADMOB_REWARDED_ID = import.meta.env.VITE_ADMOB_REWARDED_ID || 'ca-app-pub-3940256099942544/5224354917';
+const ADMOB_REWARDED_ID = import.meta.env.VITE_ADMOB_TEST === '1'
+  ? 'ca-app-pub-3940256099942544/5224354917' // Google's public test unit
+  : 'ca-app-pub-4759473851153203/6466436969';
 
 const admobAds = {
   name: 'admob',

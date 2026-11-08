@@ -5,5 +5,5 @@
     <string name="package_name">com.sahadat.bloomora</string>
     <string name="custom_url_scheme">com.sahadat.bloomora</string>
     <!-- AdMob app ID. This is Google's public TEST app ID: replace it with Bloomora's own before release. -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_app_id">ca-app-pub-4759473851153203~9751075856</string>
 </resources>

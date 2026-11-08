@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "741528132949",
+    "project_id": "bloomora-262f8",
+    "storage_bucket": "bloomora-262f8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:741528132949:android:8b8fdde91a0eafcea2a3dc",
+        "android_client_info": {
+          "package_name": "com.sahadat.bloomora"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "741528132949-maofqnvdj0069e1d680rb66i352md7gf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sahadat.bloomora",
+            "certificate_hash": "6e12a38865e06f228638f63db6d899524de00e06"
+          }
+        },
+        {
+          "client_id": "741528132949-peh83fvs3in4e7e80sc47f6vre97kqde.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTuHFltifLLrYPIJz6gfYGteaF_54TKf0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "741528132949-peh83fvs3in4e7e80sc47f6vre97kqde.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

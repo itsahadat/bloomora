@@ -1,0 +1,10 @@
+rules_version = '2';
+// Published in the Firebase console (project bloomora-262f8). Kept here for reference.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each player can only read and write their own save.
+    match /saves/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
