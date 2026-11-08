@@ -218,25 +218,87 @@ export class MapScene extends Phaser.Scene {
     const curve = new Phaser.Curves.Spline(points);
     const length = curve.getLength();
 
-    // A winding dirt road: dark edge, sandy middle, a lighter centre and scattered pebbles.
-    const g = this.add.graphics();
-    const pts = curve.getSpacedPoints(Math.floor(length / 8));
-    pts.forEach((pt) => g.fillStyle(0x2f6b2a, 0.25).fillCircle(pt.x + 2, pt.y + 6, 24));
-    pts.forEach((pt) => g.fillStyle(0x9a6a36, 1).fillCircle(pt.x, pt.y, 22));
-    pts.forEach((pt) => g.fillStyle(0xe2bc80, 1).fillCircle(pt.x, pt.y, 18));
-    pts.forEach((pt) => g.fillStyle(0xf0d4a2, 1).fillCircle(pt.x - 2, pt.y - 2, 9));
+    // A cobbled garden road, baked into image strips once (thousands of shapes would be slow to redraw).
+    const { width: W } = this.scale;
     const rng = new Phaser.Math.RandomDataGenerator(['bloomora-road']);
-    curve.getSpacedPoints(Math.floor(length / 34)).forEach((pt) => {
-      g.fillStyle(0xc49a62, 1).fillEllipse(pt.x + rng.between(-12, 12), pt.y + rng.between(-8, 8), rng.between(4, 7), rng.between(3, 5));
-    });
-
-    // Completed stretch glows with little petals.
     const doneUntil = this.nodes[Math.min(this.unlocked, this.nodes.length - 1)].y;
-    curve.getSpacedPoints(Math.floor(length / 30)).forEach((pt, i) => {
-      if (pt.y < doneUntil) return;
-      const colors = [0xff8fc4, 0xffe066, 0xffffff, 0x9ee6ff];
-      g.fillStyle(colors[i % colors.length], 0.95).fillEllipse(pt.x + (i % 2 ? 9 : -9), pt.y, 6, 4);
+    const pts = curve.getSpacedPoints(Math.floor(length / 4));
+    const normalAt = (i) => {
+      const a = pts[Math.max(0, i - 1)];
+      const b = pts[Math.min(pts.length - 1, i + 1)];
+      const dx = b.x - a.x; const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      return { x: -dy / len, y: dx / len };
+    };
+    // Each shape: [kind, x, y, ...]; drawn in layer order.
+    const layers = [[], [], [], [], [], [], []];
+    const add = (layer, y, draw) => layers[layer].push({ y, draw });
+    pts.forEach((pt) => {
+      add(0, pt.y, (g, ox, oy) => g.fillStyle(0x1f4d1f, 0.16).fillCircle(pt.x + 3 - ox, pt.y + 9 - oy, 31));
+      add(1, pt.y, (g, ox, oy) => g.fillStyle(0x4f9a3c, 0.45).fillCircle(pt.x - ox, pt.y - oy, 29));
+      add(2, pt.y, (g, ox, oy) => g.fillStyle(0x8a5a2b, 1).fillCircle(pt.x - ox, pt.y - oy, 24));
+      add(3, pt.y, (g, ox, oy) => g.fillStyle(0xe9c88e, 1).fillCircle(pt.x - ox, pt.y - oy, 20.5));
+      add(3, pt.y, (g, ox, oy) => g.fillStyle(0xf6dfb0, 1).fillCircle(pt.x - 2 - ox, pt.y - 3 - oy, 10));
     });
+    // Cobblestones in two staggered lanes.
+    pts.forEach((pt, i) => {
+      if (i % 5) return;
+      const n = normalAt(i);
+      const side = (i / 5) % 2 ? 1 : -1;
+      const x = pt.x + n.x * 8 * side + rng.between(-1, 1);
+      const y = pt.y + n.y * 8 * side + rng.between(-1, 1);
+      const w = rng.between(12, 15); const h = rng.between(9, 11);
+      add(4, y, (g, ox, oy) => {
+        g.fillStyle(0xbf9358, 1).fillEllipse(x - ox + 1, y - oy + 1.5, w, h);
+        g.fillStyle(0xdcb47a, 1).fillEllipse(x - ox, y - oy, w, h);
+        g.fillStyle(0xf2d9a8, 1).fillEllipse(x - ox - 1.5, y - oy - 2, w * 0.45, h * 0.35);
+      });
+    });
+    // Grass tufts poking over both edges, and flowers along the stretch already walked.
+    pts.forEach((pt, i) => {
+      if (i % 7) return;
+      const n = normalAt(i);
+      const side = rng.pick([1, -1]);
+      const x = pt.x + n.x * 23 * side;
+      const y = pt.y + n.y * 23 * side;
+      const tint = rng.pick([0x3f8f3a, 0x5fb84a, 0x4aa443]);
+      add(5, y, (g, ox, oy) => {
+        g.fillStyle(tint, 1);
+        g.fillTriangle(x - 5 - ox, y + 4 - oy, x - 2 - ox, y - 8 - oy, x + 1 - ox, y + 4 - oy);
+        g.fillTriangle(x - 1 - ox, y + 4 - oy, x + 2 - ox, y - 11 - oy, x + 5 - ox, y + 4 - oy);
+        g.fillTriangle(x + 3 - ox, y + 4 - oy, x + 7 - ox, y - 6 - oy, x + 9 - ox, y + 4 - oy);
+      });
+      if (pt.y >= doneUntil && i % 21 === 0) {
+        const fx = pt.x - n.x * 27 * side;
+        const fy = pt.y - n.y * 27 * side;
+        const petal = rng.pick([0xff8fc4, 0xffffff, 0xffe066, 0xb98cff]);
+        add(6, fy, (g, ox, oy) => {
+          g.fillStyle(petal, 1);
+          for (let k = 0; k < 5; k += 1) {
+            const ang = (k / 5) * Math.PI * 2;
+            g.fillCircle(fx + Math.cos(ang) * 4 - ox, fy + Math.sin(ang) * 4 - oy, 3.4);
+          }
+          g.fillStyle(0xffc23a, 1).fillCircle(fx - ox, fy - oy, 2.6);
+        });
+      }
+    });
+    // Bake into strips. Each strip replays the shapes near it, so edges join seamlessly.
+    const STRIP = 1024;
+    const yOf = (pt) => pt.y;
+    const minY = Math.min(...pts.map(yOf)) - 60;
+    const maxY = Math.max(...pts.map(yOf)) + 60;
+    const g = this.make.graphics({}, false);
+    for (let top = minY, k = 0; top < maxY; top += STRIP, k += 1) {
+      g.clear();
+      layers.forEach((layer) => layer.forEach((s) => {
+        if (s.y > top - 50 && s.y < top + STRIP + 50) s.draw(g, 0, top);
+      }));
+      const key = `map-road-${k}`;
+      if (this.textures.exists(key)) this.textures.remove(key);
+      g.generateTexture(key, W, STRIP);
+      this.add.image(0, top, key).setOrigin(0);
+    }
+    g.destroy();
 
     // A wooden sign where each new garden begins.
     ZONES.forEach((zone) => {
