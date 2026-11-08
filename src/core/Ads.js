@@ -1,13 +1,17 @@
 import { dayNumber } from './Daily.js';
-import { audioContext } from './Synth.js';
+import { setSilenced } from './Synth.js';
+import { Platform } from './Platform.js';
+import { Store } from './Storage.js';
 
 /**
  * Rewarded ads, one layer for every platform.
  *
  * The game only ever asks `Ads.canShow(placement)` and `await Ads.rewarded(placement)`;
- * which ad network answers depends on the build target (VITE_TARGET). Until a real
- * network is wired in, dev builds (or any build opened with `?fakeads`) use a test ad,
- * and other builds report "no ads", so the ad buttons simply stay hidden.
+ * which ad network answers depends on the build target (VITE_TARGET):
+ *  - CrazyGames build: the CrazyGames SDK (its test overlay on localhost).
+ *  - Other dev builds, or any build opened with `?fakeads`: a test ad.
+ *  - Anything else: no ads, so the ad buttons simply stay hidden.
+ * Providers silence the game's sound themselves, only once the ad really starts.
  */
 
 const STORAGE_KEY = 'bloomora.ads.v1';
@@ -32,7 +36,7 @@ function load() {
   if (state && state.day === dayNumber()) return state;
   let saved = null;
   try {
-    saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+    saved = JSON.parse(Store.get(STORAGE_KEY));
   } catch {
     saved = null;
   }
@@ -43,7 +47,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    Store.set(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Not persisted; caps still hold for this session.
   }
@@ -66,6 +70,7 @@ const fakeAds = {
   name: 'fake',
   ready: () => true,
   rewarded: () => new Promise((resolve) => {
+    setSilenced('ad', true);
     const SECONDS = 3;
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,20,10,0.92);display:flex;'
@@ -85,6 +90,7 @@ const fakeAds = {
     const finish = (watched) => {
       clearInterval(timer);
       overlay.remove();
+      setSilenced('ad', false);
       resolve(watched);
     };
     const tick = () => {
@@ -101,27 +107,51 @@ const fakeAds = {
   }),
 };
 
-function pickProvider() {
-  const forceFake = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fakeads');
+/**
+ * CrazyGames rewarded video. Reward only on adFinished. When ads are switched off
+ * (Basic Launch, kids mode) or blocked, every ad button hides for the rest of the session.
+ */
+const crazyAds = {
+  name: 'crazygames',
+  off: false,
+  ready() {
+    return !this.off && !!Platform.crazy;
+  },
+  rewarded() {
+    return new Promise((resolve) => {
+      let done = false;
+      const end = (watched) => {
+        if (done) return;
+        done = true;
+        setSilenced('ad', false);
+        resolve(watched);
+      };
+      try {
+        Platform.crazy.ad.requestAd('rewarded', {
+          adStarted: () => setSilenced('ad', true),
+          adFinished: () => end(true),
+          adError: (error) => {
+            const code = error?.code;
+            if (code === 'adsDisabled' || code === 'adblock') crazyAds.off = true;
+            end(false);
+          },
+        });
+      } catch {
+        end(false);
+      }
+    });
+  },
+};
+
+// Real networks for other targets (H5 Games Ads, AdMob) plug in here.
+function provider() {
+  if (Platform.target === 'crazygames' && Platform.crazy) return crazyAds;
+  const forceFake = new URLSearchParams(window.location.search).has('fakeads');
   if (import.meta.env.DEV || forceFake) return fakeAds;
-  // Real networks (CrazyGames SDK, H5 Games Ads, AdMob) plug in here per VITE_TARGET.
   return noAds;
 }
 
-const provider = pickProvider();
 let busy = false;
-
-/** Pause all game sound while an ad plays. */
-async function withSoundPaused(run) {
-  const ctx = audioContext();
-  const wasRunning = ctx?.state === 'running';
-  if (wasRunning) await ctx.suspend().catch(() => {});
-  try {
-    return await run();
-  } finally {
-    if (wasRunning) await ctx.resume().catch(() => {});
-  }
-}
 
 export const Ads = {
   STORAGE_KEY,
@@ -134,7 +164,7 @@ export const Ads = {
 
   /** True when an ad button for this placement should be shown. */
   canShow(placement) {
-    return !busy && provider.ready() && this.left(placement) > 0;
+    return !busy && provider().ready() && this.left(placement) > 0;
   },
 
   /**
@@ -145,7 +175,7 @@ export const Ads = {
     if (!this.canShow(placement)) return false;
     busy = true;
     try {
-      const watched = await withSoundPaused(() => provider.rewarded(placement));
+      const watched = await provider().rewarded(placement);
       if (watched) {
         const s = load();
         s.used[placement] = (s.used[placement] ?? 0) + 1;

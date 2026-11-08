@@ -1,3 +1,5 @@
+import { Store } from './Storage.js';
+
 const STORAGE_KEY = 'bloomora.daily.v1';
 
 /** A 7-day streak of gifts; the cycle starts over after day 7 or a missed day. */
@@ -18,7 +20,7 @@ let state = null;
 function load() {
   if (state) return state;
   try {
-    state = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+    state = JSON.parse(Store.get(STORAGE_KEY));
   } catch {
     state = null;
   }
@@ -28,7 +30,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    Store.set(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Not persisted.
   }

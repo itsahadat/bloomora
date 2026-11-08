@@ -1,3 +1,5 @@
+import { Store } from './Storage.js';
+
 const STORAGE_KEY = 'bloomora.streak.v1';
 
 /** Win streak: each win in a row (up to 3) starts the next level with more free specials. */
@@ -9,7 +11,7 @@ let state = null;
 function load() {
   if (state) return state;
   try {
-    state = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+    state = JSON.parse(Store.get(STORAGE_KEY));
   } catch {
     state = null;
   }
@@ -19,7 +21,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    Store.set(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Not persisted.
   }

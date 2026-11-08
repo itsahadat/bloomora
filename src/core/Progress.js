@@ -1,3 +1,5 @@
+import { Store } from './Storage.js';
+
 const STORAGE_KEY = 'bloomora.progress.v1';
 
 function defaults() {
@@ -9,7 +11,7 @@ let cache = null;
 function load() {
   if (cache) return cache;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = Store.get(STORAGE_KEY);
     cache = raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
   } catch {
     cache = defaults();
@@ -19,7 +21,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+    Store.set(STORAGE_KEY, JSON.stringify(cache));
   } catch {
     // Storage may be unavailable (private mode); progress then lasts for this session only.
   }

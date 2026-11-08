@@ -1,3 +1,5 @@
+import { Store } from './Storage.js';
+
 const STORAGE_KEY = 'bloomora.coins.v1';
 const START_COINS = 200;
 
@@ -7,7 +9,7 @@ const listeners = new Set();
 function load() {
   if (coins !== null) return coins;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = Store.get(STORAGE_KEY);
     coins = raw === null ? START_COINS : Math.max(0, Number(raw) || 0);
   } catch {
     coins = START_COINS;
@@ -17,7 +19,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, String(coins));
+    Store.set(STORAGE_KEY, String(coins));
   } catch {
     // Not persisted; coins still work for this session.
   }

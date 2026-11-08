@@ -1,19 +1,31 @@
 /**
- * Build an itch.io upload: bloomora-itch.zip (index.html at the zip root).
- * Usage: npm run itch   -> then upload the zip on itch.io as an HTML game.
+ * Build a game-portal upload: bloomora-<portal>.zip with index.html at the zip root.
+ * Usage: npm run itch         -> upload on itch.io as an HTML game
+ *        npm run crazygames   -> upload on the CrazyGames Developer Portal
  */
 import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
 
-const DIR = 'dist-itch';
-const OUT = 'bloomora-itch.zip';
+const PORTALS = {
+  itch: 'upload it on itch.io as an HTML game',
+  crazygames: 'upload it on the CrazyGames Developer Portal (choose "Progress Save" for the Data module)',
+};
+const portal = process.argv[2];
+if (!PORTALS[portal]) {
+  console.error(`Usage: node scripts/portal.mjs <${Object.keys(PORTALS).join('|')}>`);
+  process.exit(1);
+}
 
-// VITE_TARGET=itch skips the offline service worker (itch shows the game in a frame; a cache there would hold back updates).
+const DIR = `dist-${portal}`;
+const OUT = `bloomora-${portal}.zip`;
+
+// VITE_TARGET picks the portal's SDK and skips the offline service worker
+// (portals show the game in a frame; a cache there would hold back updates).
 execSync(`npx vite build --outDir ${DIR} --emptyOutDir`, {
   stdio: 'inherit',
-  env: { ...process.env, VITE_TARGET: 'itch' },
+  env: { ...process.env, VITE_TARGET: portal },
 });
 rmSync(join(DIR, 'sw.js'), { force: true });
 
@@ -73,4 +85,4 @@ end.writeUInt32LE(cenBuf.length, 12);
 end.writeUInt32LE(offset, 16);
 writeFileSync(OUT, Buffer.concat([...parts, cenBuf, end]));
 
-console.log(`\nMade ${OUT} (${files.length} files, ${(statSync(OUT).size / 1048576).toFixed(1)} MB) — upload it on itch.io as an HTML game.`);
+console.log(`\nMade ${OUT} (${files.length} files, ${(statSync(OUT).size / 1048576).toFixed(1)} MB) — ${PORTALS[portal]}.`);

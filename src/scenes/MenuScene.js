@@ -18,6 +18,8 @@ import { BOOSTER_STORAGE_KEY } from '../core/Inventory.js';
 import { Wheel } from '../core/Wheel.js';
 import { Streak } from '../core/Streak.js';
 import { Quests } from '../core/Quests.js';
+import { Store } from '../core/Storage.js';
+import { Platform } from '../core/Platform.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -115,12 +117,14 @@ export class MenuScene extends Phaser.Scene {
       onClick: () => {
         ['bloomora.progress.v1', 'bloomora.lives.v1', BOOSTER_STORAGE_KEY, Wallet.STORAGE_KEY, Daily.STORAGE_KEY, Seen.STORAGE_KEY, Wheel.STORAGE_KEY, Streak.STORAGE_KEY, Quests.STORAGE_KEY].forEach((k) => {
           try {
-            window.localStorage.removeItem(k);
+            Store.remove(k);
           } catch {
             // Storage unavailable: nothing saved to clear.
           }
         });
-        window.location.reload();
+        // Platform saves (CrazyGames) are written about a second later: wait for them.
+        if (Platform.savesAreRemote) this.time.delayedCall(1500, () => window.location.reload());
+        else window.location.reload();
       },
     }));
     panel.add(makeButton(this, {

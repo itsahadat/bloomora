@@ -4,6 +4,7 @@ import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { MapScene } from './scenes/MapScene.js';
+import { Platform, TARGET } from './core/Platform.js';
 
 function startGame() {
   return new Phaser.Game({
@@ -37,8 +38,13 @@ const fontsReady = document.fonts
   ])
   : Promise.resolve();
 
-Promise.race([fontsReady, new Promise((resolve) => setTimeout(resolve, 1500))])
-  .catch(() => {})
+// The platform SDK (if any) must be ready before the first save is read.
+const platformReady = Platform.init().then(() => Platform.loadingStart());
+
+Promise.all([
+  Promise.race([fontsReady, new Promise((resolve) => setTimeout(resolve, 1500))]).catch(() => {}),
+  platformReady,
+])
   .then(() => {
     const game = startGame();
     // Dev-only handle for debugging from the browser console.
@@ -46,7 +52,8 @@ Promise.race([fontsReady, new Promise((resolve) => setTimeout(resolve, 1500))])
   });
 
 // Installable + offline play (production builds only, so dev reloads are never served stale).
-if (import.meta.env.PROD && import.meta.env.VITE_TARGET !== 'itch' && 'serviceWorker' in navigator) {
+// Not on portals (itch, CrazyGames): they show the game in a frame and a cache there would hold back updates.
+if (import.meta.env.PROD && TARGET === 'web' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   });

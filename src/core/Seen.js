@@ -1,3 +1,5 @@
+import { Store } from './Storage.js';
+
 const STORAGE_KEY = 'bloomora.seen.v1';
 
 let seen = null;
@@ -5,7 +7,7 @@ let seen = null;
 function load() {
   if (seen) return seen;
   try {
-    seen = new Set(JSON.parse(window.localStorage.getItem(STORAGE_KEY)) ?? []);
+    seen = new Set(JSON.parse(Store.get(STORAGE_KEY)) ?? []);
   } catch {
     seen = new Set();
   }
@@ -23,7 +25,7 @@ export const Seen = {
   mark(features) {
     features.forEach((f) => load().add(f));
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...load()]));
+      Store.set(STORAGE_KEY, JSON.stringify([...load()]));
     } catch {
       // Not persisted; the card may show again next session.
     }

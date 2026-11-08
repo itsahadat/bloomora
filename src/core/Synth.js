@@ -8,6 +8,9 @@ let ctx = null;
 let sfxBus = null;
 let musicBus = null;
 let noiseBuffer = null;
+let master = null;
+// Reasons the whole game is silenced right now (e.g. 'ad', 'platform').
+const silencers = new Set();
 
 export function audioContext() {
   if (ctx || !AC) return ctx;
@@ -19,7 +22,10 @@ export function audioContext() {
   limiter.ratio.value = 4;
   limiter.attack.value = 0.003;
   limiter.release.value = 0.2;
-  limiter.connect(ctx.destination);
+  master = ctx.createGain();
+  master.gain.value = silencers.size ? 0 : 1;
+  master.connect(ctx.destination);
+  limiter.connect(master);
   sfxBus = ctx.createGain();
   sfxBus.connect(limiter);
   musicBus = ctx.createGain();
@@ -30,6 +36,16 @@ export function audioContext() {
   const data = noiseBuffer.getChannelData(0);
   for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
   return ctx;
+}
+
+/**
+ * Silence (or un-silence) every sound for one reason, e.g. while an ad plays or when the
+ * platform asks for mute. Sound comes back only when no reason is left.
+ */
+export function setSilenced(reason, on) {
+  if (on) silencers.add(reason);
+  else silencers.delete(reason);
+  if (master && ctx) master.gain.setTargetAtTime(silencers.size ? 0 : 1, ctx.currentTime, 0.02);
 }
 
 export function isRunning() {

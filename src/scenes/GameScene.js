@@ -18,6 +18,7 @@ import {
   makeVivid, makeMuteButton, makeCountBadge, showTooltip, makeAdButton, COLORS,
 } from '../ui/UI.js';
 import { Ads } from '../core/Ads.js';
+import { Platform } from '../core/Platform.js';
 import {
   cardTexture, insetTexture, panelTexture, raysTexture, bigStarTexture,
 } from '../ui/Skin.js';
@@ -104,7 +105,12 @@ export class GameScene extends Phaser.Scene {
     this.layout();
 
     this.scale.on('resize', this.layout, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this.layout, this);
+      // Leaving or restarting the level is a break in play.
+      Platform.gameplayStop();
+    });
+    Platform.gameplayStart();
 
     this.board.start()
       .then(() => this.board.applyStartBoosters([...this.startBoosters, ...this.streakGifts.map((k) => `streak:${k}`)]))
@@ -415,12 +421,14 @@ Tap to use it.`);
     const wasLocked = board.locked;
     board.locked = true;
     this.pauseOpen = true;
+    Platform.gameplayStop();
     const modal = showModal(this, { title: 'Paused', color: 'yellow', width: 330, height: 430 });
     const { panel, top } = modal;
     const done = () => {
       modal.close();
       board.locked = wasLocked;
       this.pauseOpen = false;
+      Platform.gameplayStart();
     };
     const soundLabel = () => (isMuted() ? 'Sound: Off' : 'Sound: On');
     const musicLabel = () => (isMusicMuted() ? 'Music: Off' : 'Music: On');
@@ -598,6 +606,7 @@ Tap to use it.`);
 
   finish(won) {
     this.ended = true;
+    Platform.gameplayStop();
     this.board.locked = true;
     this.board.stopHint();
     this.setBoosterMode(null);
@@ -697,6 +706,7 @@ Tap to use it.`);
     const payWithCoins = source === 'coins';
     closePopup();
     this.ended = false;
+    Platform.gameplayStart();
     this.board.locked = false;
     this.movesLeft += 3;
     this.movesText.setText(`${this.movesLeft}`).setColor(COLORS.text);

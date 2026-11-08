@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "node scripts/deploy.mjs",
-    "itch": "node scripts/itch.mjs"
+    "itch": "node scripts/portal.mjs itch",
+    "crazygames": "node scripts/portal.mjs crazygames",
+    "dev:crazygames": "vite --mode crazygames --port 5174"
   },
   "devDependencies": {
     "vite": "^8.2.2"

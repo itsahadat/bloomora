@@ -1,3 +1,5 @@
+import { Store } from './Storage.js';
+
 const STORAGE_KEY = 'bloomora.lives.v1';
 const MAX_LIVES = 5;
 const REGEN_MS = 30 * 60 * 1000;
@@ -9,7 +11,7 @@ let state = null;
 function load() {
   if (state) return state;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = Store.get(STORAGE_KEY);
     state = raw ? JSON.parse(raw) : null;
   } catch {
     state = null;
@@ -20,7 +22,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    Store.set(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Not persisted; lives still work for this session.
   }

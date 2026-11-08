@@ -1,12 +1,13 @@
 import { audioContext, isRunning, SOUNDS } from './Synth.js';
 import { startMusic, stopMusic, musicWanted } from './Music.js';
+import { Store } from './Storage.js';
 
 const MUTE_KEY = 'bloomora.muted';
 const MUSIC_KEY = 'bloomora.music';
 
 function readFlag(storageKey, fallback) {
   try {
-    const v = window.localStorage.getItem(storageKey);
+    const v = Store.get(storageKey);
     return v === null ? fallback : v === '1';
   } catch {
     return fallback;
@@ -15,7 +16,7 @@ function readFlag(storageKey, fallback) {
 
 function writeFlag(storageKey, value) {
   try {
-    window.localStorage.setItem(storageKey, value ? '1' : '0');
+    Store.set(storageKey, value ? '1' : '0');
   } catch {
     // Not persisted; the setting still applies for this session.
   }

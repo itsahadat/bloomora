@@ -1,4 +1,5 @@
 import { dayNumber } from './Daily.js';
+import { Store } from './Storage.js';
 
 const STORAGE_KEY = 'bloomora.quests.v1';
 
@@ -48,7 +49,7 @@ function load() {
   const week = weekNumber();
   if (!state) {
     try {
-      state = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+      state = JSON.parse(Store.get(STORAGE_KEY));
     } catch {
       state = null;
     }
@@ -62,7 +63,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    Store.set(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Not persisted.
   }

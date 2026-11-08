@@ -4,6 +4,8 @@ import { GAME_TITLE } from '../config/Constants.js';
 import { textStyle, titleStyle, ensureUiTextures, makeVivid, makeGameLogo } from '../ui/UI.js';
 import { canvasTexture, pillTexture } from '../ui/Skin.js';
 import { Board } from '../board/Board.js';
+import { Progress } from '../core/Progress.js';
+import { Platform } from '../core/Platform.js';
 
 const TIPS = [
   'Match 4 in a row to grow a line bloom!',
@@ -94,10 +96,15 @@ export class BootScene extends Phaser.Scene {
     makeVivid(this);
     Board.ensureTextures(this);
     ensureUiTextures(this);
-    // Let the logo finish its entrance, then fade into the menu.
-    this.time.delayedCall(1100, () => {
+    Platform.loadingStop();
+    // A brand-new player goes straight into level 1 (the tutorial); everyone else gets the menu.
+    const firstTime = Progress.starsFor(0) === 0;
+    // Let the logo finish its entrance, then fade into the next scene.
+    this.time.delayedCall(firstTime ? 700 : 1100, () => {
       this.cameras.main.fadeOut(350, 255, 250, 240);
-      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('MenuScene'));
+      this.cameras.main.once('camerafadeoutcomplete', () => (firstTime
+        ? this.scene.start('GameScene', { levelIndex: 0 })
+        : this.scene.start('MenuScene')));
     });
   }
 }

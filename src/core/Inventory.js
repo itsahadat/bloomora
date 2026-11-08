@@ -1,3 +1,5 @@
+import { Store } from './Storage.js';
+
 const STORAGE_KEY = 'bloomora.boosters.v1';
 export const BOOSTER_STORAGE_KEY = STORAGE_KEY;
 
@@ -17,7 +19,7 @@ function load() {
   if (counts) return counts;
   let saved = null;
   try {
-    saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+    saved = JSON.parse(Store.get(STORAGE_KEY));
   } catch {
     saved = null;
   }
@@ -27,7 +29,7 @@ function load() {
 
 function save() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(counts));
+    Store.set(STORAGE_KEY, JSON.stringify(counts));
   } catch {
     // Not persisted; counts still work for this session.
   }
