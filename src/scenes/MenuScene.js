@@ -94,7 +94,7 @@ export class MenuScene extends Phaser.Scene {
       ['A garden match puzzle', 15, '#9a6b3c'],
       ['', 10],
       ['Game, art & design', 15, '#7a4a1e'],
-      ['Bloomora', 15, '#9a6b3c'],
+      ['Md. Sahadat Hosen', 17, '#9a6b3c'],
       ['', 6],
       ['Fonts: Lilita One & Fredoka (SIL OFL)', 14, '#9a6b3c'],
     ];
