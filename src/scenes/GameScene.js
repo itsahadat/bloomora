@@ -19,6 +19,7 @@ import {
 } from '../ui/UI.js';
 import { Ads } from '../core/Ads.js';
 import { Platform } from '../core/Platform.js';
+import { CloudSave } from '../core/CloudSave.js';
 import {
   cardTexture, insetTexture, panelTexture, raysTexture, bigStarTexture,
 } from '../ui/Skin.js';
@@ -461,7 +462,10 @@ Tap to use it.`);
     board.locked = true;
     this.pauseOpen = true;
     Platform.gameplayStop();
-    const modal = showModal(this, { title: 'Paused', color: 'yellow', width: 330, height: 430 });
+    // The Android app adds a Google sign-in row: new players start in level 1 and may never
+    // have opened the menu's settings, so this is where they first find cloud save.
+    const cloudRow = CloudSave.available ? 70 : 0;
+    const modal = showModal(this, { title: 'Paused', color: 'yellow', width: 330, height: 430 + cloudRow });
     const { panel, top } = modal;
     const done = () => {
       modal.close();
@@ -489,16 +493,16 @@ Tap to use it.`);
         this.muteButton.refresh();
       },
     });
-    const resume = makeButton(this, { x: 0, y: top + 116, width: 230, height: 60, label: 'Resume', color: 'green', fontSize: 26, onClick: done });
+    const resume = makeButton(this, { x: 0, y: top + 116 + cloudRow, width: 230, height: 60, label: 'Resume', color: 'green', fontSize: 26, onClick: done });
     const restart = makeButton(this, {
-      x: 0, y: top + 190, width: 230, height: 56, label: 'Restart', color: 'yellow', fontSize: 23,
+      x: 0, y: top + 190 + cloudRow, width: 230, height: 56, label: 'Restart', color: 'yellow', fontSize: 23,
       onClick: () => {
         done();
         this.confirmLeave(() => this.restartLevel());
       },
     });
     const map = makeButton(this, {
-      x: 0, y: top + 260, width: 230, height: 56, label: 'Quit to Map', color: 'red', fontSize: 23,
+      x: 0, y: top + 260 + cloudRow, width: 230, height: 56, label: 'Quit to Map', color: 'red', fontSize: 23,
       onClick: () => {
         done();
         this.confirmLeave(() => this.goToMap());
@@ -508,6 +512,27 @@ Tap to use it.`);
       x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red', onClick: done,
     });
     panel.add([sound, music, resume, restart, map, close]);
+
+    if (cloudRow) {
+      const cloudLabel = () => (CloudSave.user ? 'Cloud Save: On' : 'Save with Google');
+      let busy = false;
+      const cloud = makeButton(this, {
+        x: 0, y: top + 108, width: 230, height: 52, label: cloudLabel(), color: CloudSave.user ? 'green' : 'blue', fontSize: 19,
+        onClick: async () => {
+          // Signed in already: the account and sign-out live in the menu's settings.
+          if (busy || CloudSave.user) return;
+          busy = true;
+          cloud.label.setText('Signing in…');
+          // If the cloud has a further save, this reloads the game with it.
+          await CloudSave.signIn();
+          busy = false;
+          if (!cloud.active) return;
+          cloud.label.setText(cloudLabel());
+          cloud.setColor(CloudSave.user ? 'green' : 'blue');
+        },
+      });
+      panel.add(cloud);
+    }
   }
 
   pressBooster(kind) {
