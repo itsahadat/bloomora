@@ -73,10 +73,12 @@ export function playMusic(track = 'menu') {
  * Loudness is evened out automatically from each file (see analyse()); `weight` then makes
  * a sound a bit louder or softer than the rest on purpose.
  * `steps`: how the call's `step` (combo chain, star 1-2-3, pot filling) raises the pitch.
+ * `file`: play another sound's file instead (with `rate` to shift its pitch).
  */
 const SAMPLE_FILES = {
   pop: { weight: 1, steps: (s) => Math.min(s, 7) },
-  swap: { weight: 0.8 },
+  // The player preferred the pop for swapping too: a softer, slightly lower pop.
+  swap: { file: 'pop', weight: 0.55, rate: 0.85 },
   select: { weight: 0.7 },
   invalid: { weight: 0.8 },
   click: { weight: 0.7 },
@@ -152,7 +154,7 @@ function loadAudio(file) {
 /** Fetch and decode the files in the background; until one arrives its synth version plays. */
 function loadSamples() {
   if (!audioContext()) return;
-  Object.keys(SAMPLE_FILES).forEach((key) => {
+  Object.keys(SAMPLE_FILES).filter((key) => !SAMPLE_FILES[key].file).forEach((key) => {
     loadAudio(key)
       .then((buffer) => { samples[key] = { buffer, ...analyse(buffer, SFX_TARGET_DB) }; })
       .catch(() => {
@@ -180,12 +182,12 @@ export function playSfx(_scene, key, config = {}) {
   const volume = config.volume ?? 1;
   try {
     const file = SAMPLE_FILES[key];
-    const sample = samples[key];
+    const sample = samples[file?.file ?? key];
     if (file && sample) {
       const semis = file.steps ? pentaSemis(file.steps(config.step ?? 0)) : 0;
       playBuffer(sample.buffer, {
         vol: sample.gain * file.weight * volume,
-        rate: pitch * 2 ** (semis / 12),
+        rate: pitch * (file.rate ?? 1) * 2 ** (semis / 12),
         offset: sample.start,
       });
       return;
