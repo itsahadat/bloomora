@@ -24,7 +24,7 @@ import {
   textStyle, titleStyle, makeButton, makeRoundButton, showModal, makeLivesBadge, addStars, makeBoosterButton, makeVivid,
   makeMuteButton, makeCountBadge, COLORS,
 } from '../ui/UI.js';
-import { orbTexture, insetTexture, cardTexture } from '../ui/Skin.js';
+import { orbTexture, insetTexture, cardTexture, canvasTexture, pillTexture } from '../ui/Skin.js';
 
 const NODE_GAP = 150;
 /** How many locked levels show above the player's current one; the rest hide under clouds. */
@@ -78,7 +78,7 @@ export class MapScene extends Phaser.Scene {
       cam.scrollY = Phaser.Math.Clamp(focus.y - H * 0.55, 0, Math.max(0, this.worldH - H));
     }
     if (this.clouds) {
-      const top = Math.max(0, this.cloudEdge(this.revealIndex) - H * 0.45);
+      const top = Math.max(0, this.cloudEdge(this.revealIndex) - H * 0.7);
       cam.setBounds(0, top, W, Math.max(this.worldH - top, H));
     }
     if (this.justUnlocked !== undefined && this.justUnlocked === this.unlocked && this.justUnlocked > 0) {
@@ -396,28 +396,71 @@ export class MapScene extends Phaser.Scene {
     const clouds = this.add.container(0, edge).setDepth(45);
     const rng = new Phaser.Math.RandomDataGenerator(['bloomora-clouds']);
 
-    // Solid sky-white body above the edge, fading in over the last stretch.
-    const body = this.add.graphics();
-    body.fillStyle(0xf3f8ff, 1).fillRect(0, -edge - 400, W, edge + 400 - 70);
-    body.fillGradientStyle(0xf3f8ff, 0xf3f8ff, 0xf3f8ff, 0xf3f8ff, 1, 1, 0, 0).fillRect(0, -70, W, 40);
-    clouds.add(body);
+    // Smooth mist: clear at the edge, solid higher up (one stretched gradient, no bands).
+    const MIST = 620;
+    const fog = canvasTexture(this, 'map-fog', 4, 256, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0, 'rgba(244,249,255,1)');
+      grad.addColorStop(0.45, 'rgba(244,249,255,0.85)');
+      grad.addColorStop(1, 'rgba(244,249,255,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 4, 256);
+    });
+    const solid = this.add.rectangle(0, -edge - 400, W, edge + 400 - MIST + 2, 0xf4f9ff).setOrigin(0);
+    const mist = this.add.image(0, -MIST, fog).setOrigin(0).setDisplaySize(W, MIST);
+    clouds.add([solid, mist]);
 
-    // Puffy cloud row along the edge (shadow first, then white puffs), gently drifting.
-    const puff = (x, y, w, h) => {
-      const g = this.add.graphics();
-      g.fillStyle(0xc9d9ee, 0.9).fillEllipse(0, 8, w, h);
-      g.fillStyle(0xffffff, 1).fillEllipse(0, 0, w, h);
-      g.fillStyle(0xffffff, 1).fillEllipse(-w * 0.22, -h * 0.28, w * 0.55, h * 0.75).fillEllipse(w * 0.2, -h * 0.22, w * 0.5, h * 0.7);
-      g.setPosition(x, y);
-      clouds.add(g);
-      this.tweens.add({ targets: g, x: x + rng.between(-14, 14), duration: rng.between(2600, 4200), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return g;
-    };
-    for (let x = -40; x < W + 60; x += rng.between(70, 100)) puff(x, rng.between(-30, -8), rng.between(140, 200), rng.between(70, 96));
-    for (let i = 0; i < 14; i += 1) puff(rng.between(0, W), -rng.between(150, 900), rng.between(120, 220), rng.between(60, 90)).setAlpha(0.8);
+    // Soft cumulus puffs (radial gradients, no outlines): sparse and faint at the edge,
+    // bigger, whiter and packed tighter the higher they float.
+    const puffTex = canvasTexture(this, 'map-cloud', 320, 200, (ctx) => {
+      const blob = (x, y, r, a) => {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(255,255,255,${a})`);
+        g.addColorStop(0.6, `rgba(255,255,255,${a * 0.85})`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      // Cool shading underneath, then the bright billows on top.
+      // (an ellipse squashed from a circle, so it fades out well inside the canvas)
+      ctx.save();
+      ctx.translate(160, 140);
+      ctx.scale(2, 0.6);
+      const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, 70);
+      shade.addColorStop(0, 'rgba(196,214,238,0.55)');
+      shade.addColorStop(1, 'rgba(196,214,238,0)');
+      ctx.fillStyle = shade;
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      [[90, 110, 62, 1], [150, 86, 78, 1], [220, 104, 64, 1], [120, 124, 56, 0.9], [196, 128, 58, 0.9], [262, 122, 44, 0.8], [56, 128, 40, 0.8]]
+        .forEach(([x, y, r, al]) => blob(x, y, r, al));
+    });
+    for (let y = 10; y > -1000; y -= 46) {
+      const depth = Math.min(1, -y / 620);
+      const count = 1 + Math.round(depth * 3);
+      for (let i = 0; i < count; i += 1) {
+        const x = rng.between(-80, W + 80);
+        const scale = (0.55 + depth * 0.7) * rng.realInRange(0.8, 1.2);
+        const c = this.add.image(x, y + rng.between(-20, 20), puffTex)
+          .setScale(scale * rng.pick([1, -1]), scale)
+          .setAlpha(Math.min(1, 0.22 + depth * 1.1) * rng.realInRange(0.85, 1));
+        clouds.add(c);
+        this.tweens.add({ targets: c, x: x + rng.between(-26, 26), duration: rng.between(5000, 9000), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }
+    }
 
-    const label = this.add.text(W / 2, -64, 'Clear levels to part the clouds!', textStyle(17, '#6b87a8', { align: 'center' })).setOrigin(0.5);
-    clouds.add(label);
+    // A small sign floating in the clouds.
+    const sign = this.add.container(W / 2, -250);
+    sign.add([
+      this.add.image(0, 0, pillTexture(this, 290, 46)),
+      this.add.text(0, -2, 'Clear levels to part the clouds', textStyle(17, '#5f7fa3')).setOrigin(0.5),
+    ]);
+    clouds.add(sign);
+    this.tweens.add({ targets: sign, y: -258, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.clouds = clouds;
   }
 
