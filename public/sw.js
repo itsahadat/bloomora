@@ -4,7 +4,7 @@
  * - Everything else (hashed JS/CSS, art, fonts): cache first, filled as it's used.
  * Bump VERSION to drop old caches after a big change.
  */
-const VERSION = 'bloomora-v1';
+const VERSION = 'bloomora-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(['./', './index.html', './manifest.webmanifest'])));

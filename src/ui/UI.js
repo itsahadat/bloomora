@@ -467,8 +467,10 @@ export function showModal(scene, { title, color = 'green', width = 340, height =
     ...deco(panelW / 2 - 14, height / 2 - 12, 12, 28)]);
   panel.list.forEach((child) => child.setScrollFactor?.(0));
 
-  panel.setScale(0.6).setAlpha(0);
-  scene.tweens.add({ targets: panel, scale: 1, alpha: 1, duration: 320, ease: 'Back.easeOut' });
+  // Tall popups shrink to fit short screens (small phones in landscape or with browser bars).
+  const fit = Math.min(1, (H - 16) / (height + 40));
+  panel.setScale(0.6 * fit).setAlpha(0);
+  scene.tweens.add({ targets: panel, scale: fit, alpha: 1, duration: 320, ease: 'Back.easeOut' });
   playSfx(scene, 'swap', { volume: 0.6, detune: 400 });
 
   let closed = false;
@@ -476,7 +478,7 @@ export function showModal(scene, { title, color = 'green', width = 340, height =
     if (closed) return;
     closed = true;
     scene.tweens.add({ targets: overlay, fillAlpha: 0, duration: 160, onComplete: () => overlay.destroy() });
-    scene.tweens.add({ targets: panel, scale: 0.75, alpha: 0, duration: 160, onComplete: () => panel.destroy() });
+    scene.tweens.add({ targets: panel, scale: 0.75 * fit, alpha: 0, duration: 160, onComplete: () => panel.destroy() });
   };
   return { panel, top: -height / 2 + 70, width: panelW, height, close };
 }
@@ -488,7 +490,7 @@ function scale(scene) {
 /** Heart + count + regen timer. Call `refresh()` every second. */
 export function makeLivesBadge(scene, x, y, lives) {
   const badge = scene.add.container(x, y);
-  const bg = scene.add.image(45, -2, pillTexture(scene, 142, 44));
+  const bg = scene.add.image(40, -2, pillTexture(scene, 128, 44));
   const heart = scene.add.image(0, -2, 'ui-heart').setDisplaySize(48, 48);
   const count = scene.add.text(0, -4, '', titleStyle(19, '#b02a3c')).setOrigin(0.5);
   const timer = scene.add.text(30, -2, '', textStyle(18, COLORS.text)).setOrigin(0, 0.5);

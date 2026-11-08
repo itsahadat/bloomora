@@ -18,14 +18,16 @@ function pin(panel) {
 /** Coin pill with a "+" that opens the shop. Updates itself when coins change. */
 export function makeCoinBadge(scene, x, y, { onShop } = {}) {
   const badge = scene.add.container(x, y);
-  const g = scene.add.image(38, -2, pillTexture(scene, 124, 44));
+  const g = scene.add.image(50, -2, pillTexture(scene, 148, 44));
   const coin = scene.add.image(0, -2, 'ui-coin').setDisplaySize(44, 44);
   const count = scene.add.text(26, -2, '', textStyle(19, '#b8740b')).setOrigin(0, 0.5);
   badge.add([g, coin, count]);
   if (onShop) {
-    badge.add(makeRoundButton(scene, { x: 82, y: -2, size: 32, label: '+', color: 'green', onClick: onShop }));
+    badge.add(makeRoundButton(scene, { x: 106, y: -2, size: 32, label: '+', color: 'green', onClick: onShop }));
   }
-  const refresh = (n = Wallet.count()) => count.setText(n.toLocaleString());
+  // Big balances are shortened (12.3K) so they always fit the pill.
+  const short = (n) => (n >= 100000 ? `${Math.floor(n / 1000)}K` : n >= 10000 ? `${(Math.floor(n / 100) / 10).toFixed(1)}K` : n.toLocaleString());
+  const refresh = (n = Wallet.count()) => count.setText(short(n));
   refresh();
   const off = Wallet.onChange((n) => {
     refresh(n);
@@ -311,7 +313,7 @@ export function openCoinPacks(scene, { onClose } = {}) {
  * or 30 minutes of unlimited lives. `onLives()` runs once the player has a life again.
  */
 export function openNoLives(scene, { onLives, onClose, closeLabel = 'Wait' } = {}) {
-  const modal = showModal(scene, { title: 'Out of Lives', color: 'red', width: 340, height: 430, depth: 140 });
+  const modal = showModal(scene, { title: 'Out of Lives', color: 'red', width: 340, height: 455, depth: 140 });
   const { panel, top } = modal;
   const heart = scene.add.image(0, top + 44, 'ui-heart-empty').setDisplaySize(60, 60);
   scene.tweens.add({ targets: heart, scale: heart.scale * 1.08, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });

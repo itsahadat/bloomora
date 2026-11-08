@@ -746,12 +746,12 @@ Tap to use it.`);
   showGoalsDone() {
     const { x, y } = this.boardCenter();
     const layer = this.add.container(x, y).setDepth(90);
-    const star = this.add.image(0, -40, bigStarTexture(this, 256, true)).setScale(0);
-    const text = this.add.text(0, 50, 'All Goals\nComplete!', titleStyle(Math.min(54, this.scale.width * 0.11), '#2c861b', { align: 'center' }))
+    const star = this.add.image(0, -78, bigStarTexture(this, 256, true)).setScale(0);
+    const text = this.add.text(0, 44, 'All Goals\nComplete!', titleStyle(Math.min(54, this.scale.width * 0.11), '#2c861b', { align: 'center' }))
       .setOrigin(0.5).setScale(0.3).setAlpha(0);
     layer.add([star, text]);
     playSfx(this, 'special');
-    this.tweens.add({ targets: star, scale: 0.42, angle: { from: -90, to: 0 }, duration: 420, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: star, scale: 0.34, angle: { from: -90, to: 0 }, duration: 420, ease: 'Back.easeOut' });
     this.tweens.add({ targets: text, scale: 1, alpha: 1, duration: 360, delay: 120, ease: 'Back.easeOut' });
     this.tweens.add({ targets: layer, alpha: 0, y: y - 40, duration: 320, delay: 1250, onComplete: () => layer.destroy() });
   }

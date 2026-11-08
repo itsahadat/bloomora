@@ -617,9 +617,9 @@ export class MapScene extends Phaser.Scene {
     const back = makeRoundButton(this, {
       x: 34, y: 34, size: 46, label: '‹', color: 'yellow', onClick: () => this.scene.start('MenuScene'),
     });
-    const badge = makeLivesBadge(this, 96, 34, Lives);
+    const badge = makeLivesBadge(this, 90, 34, Lives);
     this.livesBadge = badge;
-    this.coinBadge = makeCoinBadge(this, W - 112, 34, { onShop: () => openShop(this, { onClose: () => badge.refresh() }) });
+    this.coinBadge = makeCoinBadge(this, W - 136, 34, { onShop: () => openShop(this, { onClose: () => badge.refresh() }) });
     const mute = makeMuteButton(this, { x: W - 34, y: 88, size: 44 });
     [back, badge, this.coinBadge, mute].forEach((o) => o.setScrollFactor(0, 0, true).setDepth(50));
     this.time.addEvent({ delay: 1000, loop: true, callback: () => badge.refresh() });
