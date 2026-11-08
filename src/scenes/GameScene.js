@@ -15,7 +15,7 @@ const FEATURES = {
 import { Progress } from '../core/Progress.js';
 import {
   textStyle, titleStyle, makeButton, makeRoundButton, addGardenBackground, showModal, makeBoosterButton, boosterIcon,
-  makeVivid, makeMuteButton, makeCountBadge, COLORS,
+  makeVivid, makeMuteButton, makeCountBadge, showTooltip, COLORS,
 } from '../ui/UI.js';
 import {
   cardTexture, insetTexture, panelTexture, raysTexture, bigStarTexture,
@@ -25,7 +25,7 @@ import { Inventory, BOOSTERS } from '../core/Inventory.js';
 import { playSfx, playMusic } from '../core/Sound.js';
 import { Lives } from '../core/Lives.js';
 import { Wallet } from '../core/Wallet.js';
-import { openBuyBooster } from '../ui/Shop.js';
+import { openBuyBooster, openNoLives } from '../ui/Shop.js';
 
 const CONTINUE_PRICE = 150;
 
@@ -135,6 +135,12 @@ export class GameScene extends Phaser.Scene {
       const icon = this.add.image(0, 0, goalIconKey(type)).setDisplaySize(46, 46);
       const badge = makeCountBadge(this, 18, 16, count, 28);
       item.add([icon, badge]);
+      item.setSize(56, 56).setInteractive({ useHandCursor: true });
+      item.on('pointerdown', () => {
+        const m = item.getWorldTransformMatrix();
+        const [title, body] = this.describeGoal(type);
+        showTooltip(this, m.tx, m.ty + 30 * m.scaleY, title, body, { below: true });
+      });
       this.goalRow.add(item);
       this.goalItems[type] = { item, icon, text: badge.text, shown: count };
     });
@@ -321,12 +327,49 @@ export class GameScene extends Phaser.Scene {
     this.boosterButtons = {};
     const kinds = Object.keys(BOOSTERS).filter((k) => BOOSTERS[k].inGame);
     kinds.forEach((kind) => {
-      const btn = makeBoosterButton(this, { x: 0, y: 0, kind, size: 72, onClick: () => this.pressBooster(kind) });
+      const btn = makeBoosterButton(this, {
+        x: 0, y: 0, kind, size: 72,
+        onClick: () => {
+          if (btn.heldForTip) { btn.heldForTip = false; return; }
+          this.pressBooster(kind);
+        },
+      });
+      // Press and hold a booster to see what it does.
+      btn.on('pointerdown', () => {
+        btn.heldForTip = false;
+        btn.holdTimer?.remove();
+        btn.holdTimer = this.time.delayedCall(420, () => {
+          btn.heldForTip = true;
+          const m = btn.getWorldTransformMatrix();
+          showTooltip(this, m.tx, m.ty - 40 * m.scaleY, BOOSTERS[kind].name, `${BOOSTERS[kind].help}.
+Tap to use it.`);
+        });
+      });
+      btn.on('pointerout', () => btn.holdTimer?.remove());
+      btn.on('pointerup', () => btn.holdTimer?.remove());
       btn.setCount(Inventory.count(kind));
       this.boosterBar.add(btn);
       this.boosterButtons[kind] = btn;
     });
     this.boosterHint = this.add.text(0, 0, '', titleStyle(18, '#6b3d14')).setOrigin(0.5, 1).setDepth(12);
+  }
+
+  /** Title and explanation for a goal's tooltip. */
+  describeGoal(type) {
+    const left = Math.max(0, this.remaining[type]);
+    const done = left <= 0 ? ' Done!' : '';
+    const info = {
+      soil: ['Dry Soil', 'Match blooms sitting on brown soil to grow grass. Dark soil needs two matches.'],
+      crate: ['Planter Boxes', 'Match right next to a box to break it. Boxes with metal bands take two hits.'],
+      vine: ['Vines', 'A vine holds a bloom in place. Match that bloom to cut the vine.'],
+      weed: ['Thorny Weeds', 'Match next to a weed to pull it. Leave them alone and they spread!'],
+      pot: ['Thirsty Pots', 'Match next to a pot to water it. Blooms of the kind it shows count double!'],
+      seed: ['Seeds', 'Clear the blooms under a seed so it drops to the bottom row.'],
+    }[type];
+    if (info) return [info[0], `${info[1]} ${left} to go.${done}`];
+    const plural = type === 'leaf' ? 'leaves' : /[^aeiou]y$/.test(type) ? `${type.slice(0, -1)}ies` : `${type}s`;
+    const title = plural.charAt(0).toUpperCase() + plural.slice(1);
+    return [title, left > 0 ? `Match ${left} more ${plural}. Long matches and specials help!` : 'All collected!'];
   }
 
   // ---------------------------------------------------------------- pause
@@ -576,7 +619,11 @@ export class GameScene extends Phaser.Scene {
 
   restartLevel() {
     if (Lives.count() <= 0) {
-      this.goToMap();
+      openNoLives(this, {
+        closeLabel: 'Back to Map',
+        onLives: () => this.scene.restart({ levelIndex: this.levelIndex }),
+        onClose: () => this.goToMap(),
+      });
       return;
     }
     this.scene.restart({ levelIndex: this.levelIndex });

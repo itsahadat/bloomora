@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { preloadJewelIcons, preloadKenney } from '../config/Assets.js';
 import { GAME_TITLE } from '../config/Constants.js';
-import { textStyle, titleStyle, ensureUiTextures, makeVivid } from '../ui/UI.js';
+import { textStyle, titleStyle, ensureUiTextures, makeVivid, makeGameLogo } from '../ui/UI.js';
 import { canvasTexture, pillTexture } from '../ui/Skin.js';
 import { Board } from '../board/Board.js';
 
@@ -52,22 +52,13 @@ export class BootScene extends Phaser.Scene {
     const rayImg = this.add.image(W / 2, H * 0.36, rays).setDisplaySize(raySize, raySize);
     this.tweens.add({ targets: rayImg, angle: 360, duration: 30000, repeat: -1 });
 
-    // Rainbow logo.
+    // Candy logo: letters pop in one by one, then bob.
     const size = Math.round(Phaser.Math.Clamp(Math.min(W * 0.13, H * 0.13), 48, 100));
-    const colors = ['#ff4f9a', '#ff9f1c', '#ffd23f', '#3ccf6e', '#2fb4ff', '#9b5cff'];
-    const letters = GAME_TITLE.split('').map((ch, i) => this.add.text(0, 0, ch, textStyle(size, colors[i % colors.length], {
-      stroke: '#ffffff', strokeThickness: Math.round(size / 6),
-      shadow: { offsetX: 0, offsetY: Math.round(size / 11), color: '#7a4a1e', blur: 0, fill: true, stroke: true },
-    })).setOrigin(0.5));
-    const overlap = size * 0.08;
-    const totalW = letters.reduce((sum, t) => sum + t.width - overlap, 0);
-    let lx = W / 2 - totalW / 2;
+    const { letters } = makeGameLogo(this, W / 2, H * 0.36, GAME_TITLE, size);
     letters.forEach((t, i) => {
-      t.setPosition(lx + (t.width - overlap) / 2, H * 0.36);
-      lx += t.width - overlap;
       t.setScale(0);
       this.tweens.add({ targets: t, scale: 1, duration: 420, delay: 80 * i, ease: 'Back.easeOut' });
-      this.tweens.add({ targets: t, y: t.y - 8, duration: 700, delay: 600 + i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: t, y: -8, duration: 700, delay: 600 + i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     });
     this.add.text(W / 2, H * 0.36 + size * 0.75, 'Garden Match', titleStyle(22, '#2c861b')).setOrigin(0.5);
 

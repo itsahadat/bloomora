@@ -383,19 +383,37 @@ export class Board {
   // ---------------------------------------------------------------- layout
 
   /** Fit the board inside the given screen rectangle. Returns the board's on-screen rect. */
+  /** Rows/columns that hold playable cells, so small starter boards fill the space. */
+  playableBounds() {
+    let minR = ROWS; let maxR = -1; let minC = COLS; let maxC = -1;
+    for (let r = 0; r < ROWS; r += 1) {
+      for (let c = 0; c < COLS; c += 1) {
+        if (!this.cells[r][c].playable) continue;
+        minR = Math.min(minR, r); maxR = Math.max(maxR, r);
+        minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+      }
+    }
+    return { minR, minC, rows: maxR - minR + 1, cols: maxC - minC + 1 };
+  }
+
   layout(x, y, width, height) {
     const pad = 10;
-    const bw = COLS * CELL + pad * 2;
-    const bh = ROWS * CELL + pad * 2;
-    const s = Math.max(0.2, Math.min(width / bw, height / bh));
+    const { minR, minC, rows, cols } = this.playableBounds();
+    const bw = cols * CELL + pad * 2;
+    const bh = rows * CELL + pad * 2;
+    // A smaller board gets bigger tiles, but not more than 25% bigger than a full 8x8 board's.
+    const fullScale = Math.min(width / (COLS * CELL + pad * 2), height / (ROWS * CELL + pad * 2));
+    const s = Math.max(0.2, Math.min(width / bw, height / bh, fullScale * 1.25));
     this.scaleFactor = s;
 
-    const ox = x + (width - bw * s) / 2 + pad * s;
-    const oy = y + (height - bh * s) / 2 + pad * s;
+    const vx = x + (width - bw * s) / 2 + pad * s;
+    const vy = y + (height - bh * s) / 2 + pad * s;
+    const ox = vx - minC * CELL * s;
+    const oy = vy - minR * CELL * s;
     this.root.setPosition(ox, oy).setScale(s);
 
-    this.maskShape.clear().fillStyle(0xffffff, 1).fillRect(ox, oy, COLS * CELL * s, ROWS * CELL * s);
-    this.rect = { x: ox, y: oy, width: COLS * CELL * s, height: ROWS * CELL * s };
+    this.maskShape.clear().fillStyle(0xffffff, 1).fillRect(vx, vy, cols * CELL * s, rows * CELL * s);
+    this.rect = { x: vx, y: vy, width: cols * CELL * s, height: rows * CELL * s };
     return this.rect;
   }
 

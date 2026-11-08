@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { LEVELS, ZONES, resolveObjective } from '../levels/LevelData.js';
 import { Progress } from '../core/Progress.js';
-import { Lives, formatTimer } from '../core/Lives.js';
+import { Lives } from '../core/Lives.js';
 import { goalIconKey } from '../board/Board.js';
 import { playSfx, playMusic } from '../core/Sound.js';
 import { Inventory, BOOSTERS } from '../core/Inventory.js';
@@ -9,7 +9,7 @@ import { Wallet } from '../core/Wallet.js';
 import { Daily } from '../core/Daily.js';
 import { openLuckyWheel, makeWheelButton } from '../ui/LuckyWheel.js';
 import {
-  makeCoinBadge, openShop, openDailyReward, openBuyBooster, LIVES_PRICE,
+  makeCoinBadge, openShop, openDailyReward, openBuyBooster, openNoLives,
 } from '../ui/Shop.js';
 import {
   textStyle, titleStyle, makeButton, makeRoundButton, showModal, makeLivesBadge, addStars, makeBoosterButton, makeVivid,
@@ -341,39 +341,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   showNoLives() {
-    const modal = showModal(this, { title: 'Out of Lives', color: 'red', width: 320, height: 320 });
-    const { panel, top } = modal;
-    panel.add(this.add.image(0, top + 50, 'ui-heart-empty').setDisplaySize(64, 64));
-    const timer = this.add.text(0, top + 104, '', textStyle(18, '#9a6b3c', { align: 'center' })).setOrigin(0.5);
-    const update = () => timer.setText(`Next life in ${formatTimer(Lives.msToNext())}`);
-    update();
-    const tick = this.time.addEvent({ delay: 1000, loop: true, callback: update });
-    const done = () => {
-      tick.remove();
-      modal.close();
-    };
-    panel.add(timer);
-    const refill = makeButton(this, {
-      x: 0, y: top + 158, width: 220, height: 50, label: `Refill · ${LIVES_PRICE}`, color: 'green', fontSize: 20,
-      onClick: () => {
-        if (!Wallet.spend(LIVES_PRICE)) {
-          playSfx(this, 'invalid');
-          timer.setText('Not enough coins yet!');
-          return;
-        }
-        Lives.refill();
-        playSfx(this, 'bloom');
-        this.livesBadge.refresh();
-        done();
-      },
-    });
-    refill.label.setX(14);
-    refill.add(this.add.image(-78, -3, 'ui-heart').setDisplaySize(30, 30));
-    panel.add(refill);
-    panel.add(makeButton(this, {
-      x: 0, y: top + 218, width: 220, height: 50, label: 'Wait', color: 'blue', onClick: done,
-    }));
-    panel.setScrollFactor(0, 0, true);
+    openNoLives(this, { onLives: () => this.livesBadge.refresh(), onClose: () => this.livesBadge.refresh() });
   }
 
   showDaily() {

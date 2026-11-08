@@ -31,6 +31,55 @@ export function titleStyle(size, stroke = '#b45a00', extra = {}) {
   });
 }
 
+/**
+ * The BLOOMORA logo: candy letters with a thin colored outline, a white ring,
+ * a soft top-to-bottom gloss and only a light shadow. A little sprout grows from the first "O".
+ * Returns { logo, letters } so scenes can animate each letter.
+ */
+export function makeGameLogo(scene, x, y, title, size) {
+  const fills = [['#ff6fae', '#ec2a7c'], ['#ffad4a', '#f2740a'], ['#ffd84a', '#f2ac00'], ['#5fd98a', '#1fae54'], ['#5cc4ff', '#178fe3'], ['#b48aff', '#7c42ea']];
+  const rims = ['#b81d60', '#c25a06', '#c48300', '#16813f', '#0f68b0', '#5a2bb8'];
+  const logo = scene.add.container(x, y);
+  const letters = title.split('').map((ch, i) => {
+    const k = i % fills.length;
+    const letter = scene.add.container(0, 0);
+    const back = scene.add.text(0, 0, ch, textStyle(size, rims[k], {
+      stroke: rims[k], strokeThickness: Math.round(size / 4.2),
+      shadow: { offsetX: 0, offsetY: Math.round(size / 16), color: 'rgba(70,40,20,0.22)', blur: Math.round(size / 10), fill: true, stroke: true },
+    })).setOrigin(0.5);
+    const front = scene.add.text(0, 0, ch, textStyle(size, fills[k][1], { stroke: '#ffffff', strokeThickness: Math.round(size / 11) })).setOrigin(0.5);
+    const grad = front.context.createLinearGradient(0, front.height * 0.2, 0, front.height * 0.8);
+    grad.addColorStop(0, fills[k][0]);
+    grad.addColorStop(1, fills[k][1]);
+    front.setFill(grad);
+    letter.add([back, front]);
+    letter.letterWidth = front.width;
+    return letter;
+  });
+  const overlap = size * 0.1;
+  const totalW = letters.reduce((sum, l) => sum + l.letterWidth - overlap, 0);
+  let lx = -totalW / 2;
+  letters.forEach((l) => {
+    l.x = lx + (l.letterWidth - overlap) / 2;
+    lx += l.letterWidth - overlap;
+  });
+  logo.add(letters);
+
+  // A tiny two-leaf sprout on top of the first "O".
+  const o = letters[title.indexOf('O')];
+  if (o) {
+    const sprout = scene.add.graphics();
+    const u = size / 60;
+    sprout.lineStyle(4 * u, 0x2f9e57, 1).lineBetween(0, 0, 0, -12 * u);
+    sprout.fillStyle(0x2f9e57, 1).fillEllipse(-8 * u, -15 * u, 17 * u, 10 * u).fillEllipse(8 * u, -17 * u, 17 * u, 10 * u);
+    sprout.fillStyle(0x7fe39c, 1).fillEllipse(-8 * u, -16 * u, 12 * u, 6 * u).fillEllipse(8 * u, -18 * u, 12 * u, 6 * u);
+    sprout.setPosition(0, -size * 0.42);
+    o.addAt(sprout, 0);
+    scene.tweens.add({ targets: sprout, angle: { from: -10, to: 10 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+  return { logo, letters };
+}
+
 function pressable(scene, button, onClick) {
   button.setInteractive({ useHandCursor: true });
   const base = () => button.baseScale ?? 1;
@@ -442,10 +491,11 @@ export function makeLivesBadge(scene, x, y, lives) {
   badge.add([bg, heart, count, timer]);
   badge.refresh = () => {
     const n = lives.count();
-    count.setText(`${n}`);
+    const unlimited = lives.isUnlimited?.();
+    count.setText(unlimited ? '∞' : `${n}`).setFontFamily(unlimited ? 'Arial, sans-serif' : FONT);
     heart.setTexture(n > 0 ? 'ui-heart' : 'ui-heart-empty');
     const ms = lives.msToNext();
-    timer.setText(ms > 0 ? formatMs(ms) : 'Full');
+    timer.setText(unlimited ? formatMs(lives.msUnlimited()) : ms > 0 ? formatMs(ms) : 'Full');
   };
   badge.refresh();
   return badge;
@@ -499,4 +549,44 @@ export function makeBoosterButton(scene, { x, y, kind, size = 64, onClick }) {
     if (on) pulse = scene.tweens.add({ targets: glow, alpha: { from: 1, to: 0.4 }, duration: 500, yoyo: true, repeat: -1 });
   };
   return button;
+}
+
+let activeTip = null;
+
+/**
+ * Small speech-bubble tooltip pointing at (x, y) in screen space. Only one shows at a time;
+ * it closes on the next tap or after a few seconds.
+ */
+export function showTooltip(scene, x, y, title, body, { below = false, depth = 300 } = {}) {
+  if (activeTip?.active) activeTip.destroy();
+  const W = scene.scale.width;
+  const w = Math.min(250, W - 24);
+  const tip = scene.add.container(x, y).setDepth(depth).setScrollFactor(0);
+  const head = scene.add.text(0, 0, title, textStyle(17, '#7a4a1e', { wordWrap: { width: w - 28 }, align: 'center' })).setOrigin(0.5, 0);
+  const text = scene.add.text(0, 0, body, textStyle(14, '#9a6b3c', { wordWrap: { width: w - 28 }, align: 'center' })).setOrigin(0.5, 0);
+  const h = 12 + head.height + 4 + text.height + 12;
+  const bx = Phaser.Math.Clamp(x, w / 2 + 12, W - w / 2 - 12) - x;
+  const top = below ? 14 : -14 - h;
+  head.setPosition(bx, top + 12);
+  text.setPosition(bx, top + 12 + head.height + 4);
+  const g = scene.add.graphics();
+  g.fillStyle(0x5a3a1a, 0.18).fillRoundedRect(bx - w / 2, top + 4, w, h, 16);
+  g.fillStyle(0xfff8e8, 1).fillRoundedRect(bx - w / 2, top, w, h, 16);
+  g.lineStyle(3, 0xe8b46a, 1).strokeRoundedRect(bx - w / 2, top, w, h, 16);
+  const ay = below ? 14 : -14;
+  g.fillStyle(0xfff8e8, 1).fillTriangle(-9, ay, 9, ay, 0, below ? 2 : -2);
+  g.lineStyle(3, 0xe8b46a, 1).lineBetween(-9, ay, 0, below ? 2 : -2).lineBetween(9, ay, 0, below ? 2 : -2);
+  tip.add([g, head, text]);
+  tip.setScale(0.6).setAlpha(0);
+  scene.tweens.add({ targets: tip, scale: 1, alpha: 1, duration: 180, ease: 'Back.easeOut' });
+
+  const close = () => {
+    if (!tip.active) return;
+    scene.tweens.add({ targets: tip, alpha: 0, scale: 0.85, duration: 140, onComplete: () => tip.destroy() });
+  };
+  const timer = scene.time.delayedCall(3200, close);
+  scene.time.delayedCall(120, () => scene.input.once('pointerdown', close));
+  tip.once('destroy', () => timer.remove());
+  activeTip = tip;
+  return tip;
 }

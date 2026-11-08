@@ -2,11 +2,13 @@ import { textStyle, makeButton, makeRoundButton, showModal, boosterIcon } from '
 import { pillTexture } from './Skin.js';
 import { Wallet } from '../core/Wallet.js';
 import { Inventory, BOOSTERS } from '../core/Inventory.js';
-import { Lives } from '../core/Lives.js';
+import { Lives, UNLIMITED_MS, formatTimer } from '../core/Lives.js';
 import { Daily, DAILY_REWARDS } from '../core/Daily.js';
 import { playSfx } from '../core/Sound.js';
 
 export const LIVES_PRICE = 250;
+export const ONE_LIFE_PRICE = 90;
+export const UNLIMITED_PRICE = 450;
 
 /** Make every child of a modal panel ignore camera scroll (needed on the scrolling map). */
 function pin(panel) {
@@ -111,9 +113,15 @@ export function openShop(scene, { onClose } = {}) {
       buy: () => Lives.refill(),
       can: () => !Lives.isFull(),
     },
+    {
+      kind: 'unlimited', icon: 'ui-heart', infinite: true, name: 'Unlimited Lives', price: UNLIMITED_PRICE,
+      owned: () => (Lives.isUnlimited() ? `Active · ${formatTimer(Lives.msUnlimited())} left` : '30 minutes of free tries'),
+      buy: () => Lives.addUnlimited(UNLIMITED_MS),
+      can: () => true,
+    },
   ];
   const rowH = 58;
-  const height = 64 + 58 + rows.length * rowH + 20;
+  const height = 64 + 58 + rows.length * rowH + 20 + 62;
   const modal = showModal(scene, { title: 'Garden Shop', color: 'green', width: 360, height, depth: 120 });
   const { panel, top, width } = modal;
 
@@ -133,6 +141,7 @@ export function openShop(scene, { onClose } = {}) {
     const bg = scene.add.graphics();
     bg.fillStyle(i % 2 ? 0xfdf4e0 : 0xf4ecd8, 1).fillRoundedRect(left, y - rowH / 2 + 3, width - 40, rowH - 6, 14);
     const icon = scene.add.image(left + 28, y, row.icon).setDisplaySize(38, 38);
+    const mark = row.infinite ? [scene.add.text(left + 28, y - 3, '∞', textStyle(22, '#ffffff', { fontFamily: 'Arial, sans-serif', fontStyle: 'bold', stroke: '#b02a3c', strokeThickness: 4 })).setOrigin(0.5)] : [];
     const name = scene.add.text(left + 56, y - 9, row.name, textStyle(16, '#7a4a1e')).setOrigin(0, 0.5);
     const owned = scene.add.text(left + 56, y + 11, row.owned(), textStyle(12, '#b08a60')).setOrigin(0, 0.5);
     const btn = makeButton(scene, {
@@ -160,8 +169,13 @@ export function openShop(scene, { onClose } = {}) {
     });
     btn.label.setX(12);
     btn.add(scene.add.image(-26, -3, 'ui-coin').setDisplaySize(22, 22));
-    panel.add([bg, icon, name, owned, btn]);
+    panel.add([bg, icon, ...mark, name, owned, btn]);
   });
+
+  panel.add(makeButton(scene, {
+    x: 0, y: height / 2 - 46, width: 220, height: 48, label: 'Get More Coins', color: 'blue', fontSize: 19,
+    onClick: () => openCoinPacks(scene),
+  }));
 
   const close = makeRoundButton(scene, {
     x: width / 2 - 26, y: -height / 2 + 26, size: 38, label: '✕', color: 'red',
@@ -241,6 +255,107 @@ export function openDailyReward(scene, { coinTarget, onClose } = {}) {
     },
   });
   panel.add(claim);
+  pin(panel);
+  return modal;
+}
+
+/**
+ * Coin packs page. There is no real store yet, so every pack just says "Coming soon"
+ * (no payment of any kind is taken).
+ */
+export function openCoinPacks(scene, { onClose } = {}) {
+  const packs = [
+    { coins: 500, label: 'Handful', tag: '' },
+    { coins: 1200, label: 'Basket', tag: 'Popular' },
+    { coins: 3000, label: 'Barrow', tag: 'Best value' },
+  ];
+  const rowH = 66;
+  const height = 64 + 40 + packs.length * rowH + 70;
+  const modal = showModal(scene, { title: 'Coin Packs', color: 'blue', width: 340, height, depth: 140 });
+  const { panel, top, width } = modal;
+  const note = scene.add.text(0, top + 22, 'The coin store is coming soon!', textStyle(15, '#9a6b3c')).setOrigin(0.5);
+  panel.add(note);
+  const left = -width / 2 + 20;
+  packs.forEach((pack, i) => {
+    const y = top + 48 + i * rowH + rowH / 2;
+    const bg = scene.add.graphics();
+    bg.fillStyle(i % 2 ? 0xfdf4e0 : 0xf4ecd8, 1).fillRoundedRect(left, y - rowH / 2 + 4, width - 40, rowH - 8, 14);
+    const pile = scene.add.container(left + 34, y);
+    for (let k = 0; k <= i; k += 1) pile.add(scene.add.image((k - i / 2) * 9, -k * 3, 'ui-coin').setDisplaySize(34, 34));
+    const name = scene.add.text(left + 72, y - 10, `${pack.coins.toLocaleString()} coins`, textStyle(18, '#b8740b')).setOrigin(0, 0.5);
+    const sub = scene.add.text(left + 72, y + 12, pack.tag ? `${pack.label} · ${pack.tag}` : pack.label, textStyle(12, '#b08a60')).setOrigin(0, 0.5);
+    const btn = makeButton(scene, {
+      x: width / 2 - 66, y, width: 88, height: 40, label: 'Soon', color: 'grey', fontSize: 17,
+      onClick: () => {
+        playSfx(scene, 'invalid');
+        note.setText('Not available yet — win levels and spin the wheel!').setColor('#c25b5b');
+        scene.tweens.add({ targets: note, scale: { from: 1.12, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+      },
+    });
+    panel.add([bg, pile, name, sub, btn]);
+  });
+  const close = makeRoundButton(scene, {
+    x: width / 2 - 26, y: -height / 2 + 26, size: 38, label: '✕', color: 'red',
+    onClick: () => {
+      modal.close();
+      onClose?.();
+    },
+  });
+  panel.add(close);
+  pin(panel);
+  return modal;
+}
+
+/**
+ * Out of Lives popup: wait for the next life, or spend coins on one life, a full refill
+ * or 30 minutes of unlimited lives. `onLives()` runs once the player has a life again.
+ */
+export function openNoLives(scene, { onLives, onClose, closeLabel = 'Wait' } = {}) {
+  const modal = showModal(scene, { title: 'Out of Lives', color: 'red', width: 340, height: 430, depth: 140 });
+  const { panel, top } = modal;
+  const heart = scene.add.image(0, top + 44, 'ui-heart-empty').setDisplaySize(60, 60);
+  scene.tweens.add({ targets: heart, scale: heart.scale * 1.08, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  const timer = scene.add.text(0, top + 94, '', textStyle(17, '#9a6b3c', { align: 'center' })).setOrigin(0.5);
+  const coins = scene.add.text(0, top + 118, '', textStyle(13, '#b08a60')).setOrigin(0.5);
+  const update = () => {
+    timer.setText(`Next life in ${formatTimer(Lives.msToNext())}`);
+    coins.setText(`You have ${Wallet.count().toLocaleString()} coins`);
+    if (Lives.count() > 0 && !modal.done) finish(true);
+  };
+  const tick = scene.time.addEvent({ delay: 1000, loop: true, callback: update });
+  const finish = (gotLives) => {
+    modal.done = true;
+    tick.remove();
+    modal.close();
+    if (gotLives) onLives?.();
+    else onClose?.();
+  };
+  const offer = (y, label, price, color, buy) => {
+    const btn = makeButton(scene, {
+      x: 0, y, width: 250, height: 50, label: `${label} · ${price}`, color, fontSize: 18,
+      onClick: () => {
+        if (!Wallet.spend(price)) {
+          playSfx(scene, 'invalid');
+          coins.setText('Not enough coins yet!').setColor('#c25b5b');
+          scene.time.delayedCall(900, () => coins.active && coins.setColor('#b08a60'));
+          return;
+        }
+        buy();
+        playSfx(scene, 'bloom');
+        finish(true);
+      },
+    });
+    btn.label.setX(14);
+    btn.add(scene.add.image(14 - btn.label.width / 2 - 22, -3, 'ui-coin').setDisplaySize(26, 26));
+    return btn;
+  };
+  panel.add([heart, timer, coins,
+    offer(top + 164, '+1 Life', ONE_LIFE_PRICE, 'green', () => Lives.addOne()),
+    offer(top + 222, 'Full Refill', LIVES_PRICE, 'green', () => Lives.refill()),
+    offer(top + 280, 'Unlimited 30 min', UNLIMITED_PRICE, 'yellow', () => Lives.addUnlimited(UNLIMITED_MS)),
+    makeButton(scene, { x: 0, y: top + 344, width: 250, height: 48, label: closeLabel, color: 'blue', fontSize: 19, onClick: () => finish(false) }),
+  ]);
+  update();
   pin(panel);
   return modal;
 }

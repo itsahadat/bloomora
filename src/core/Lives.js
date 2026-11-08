@@ -1,6 +1,8 @@
 const STORAGE_KEY = 'bloomora.lives.v1';
 const MAX_LIVES = 5;
 const REGEN_MS = 30 * 60 * 1000;
+/** How long one Unlimited Lives purchase lasts. */
+export const UNLIMITED_MS = 30 * 60 * 1000;
 
 let state = null;
 
@@ -45,17 +47,42 @@ export const Lives = {
   MAX: MAX_LIVES,
 
   count() {
-    return refresh().lives;
+    return this.isUnlimited() ? MAX_LIVES : refresh().lives;
+  },
+
+  /** Unlimited lives: playing (and losing) costs nothing until the timer runs out. */
+  isUnlimited() {
+    return (load().unlimitedUntil ?? 0) > Date.now();
+  },
+
+  msUnlimited() {
+    return Math.max(0, (load().unlimitedUntil ?? 0) - Date.now());
+  },
+
+  /** Add unlimited-lives time (stacks with any time still left). */
+  addUnlimited(ms) {
+    const s = refresh();
+    s.unlimitedUntil = Math.max(s.unlimitedUntil ?? 0, Date.now()) + ms;
+    save();
+  },
+
+  /** Give one life (up to the maximum). */
+  addOne() {
+    const s = refresh();
+    s.lives = Math.min(MAX_LIVES, s.lives + 1);
+    if (s.lives >= MAX_LIVES) s.last = Date.now();
+    save();
   },
 
   /** Milliseconds until the next life arrives (0 when full). */
   msToNext() {
+    if (this.isUnlimited()) return 0;
     const s = refresh();
     return s.lives >= MAX_LIVES ? 0 : Math.max(0, REGEN_MS - (Date.now() - s.last));
   },
 
   isFull() {
-    return refresh().lives >= MAX_LIVES;
+    return this.isUnlimited() || refresh().lives >= MAX_LIVES;
   },
 
   /** Top lives back up to the maximum. */
@@ -67,6 +94,7 @@ export const Lives = {
   },
 
   lose() {
+    if (this.isUnlimited()) return;
     const s = refresh();
     if (s.lives >= MAX_LIVES) s.last = Date.now();
     s.lives = Math.max(0, s.lives - 1);

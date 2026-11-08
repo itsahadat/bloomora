@@ -4,7 +4,7 @@ import { LEVELS, resolveObjective } from '../levels/LevelData.js';
 import { goalIconKey } from '../board/Board.js';
 import { Progress } from '../core/Progress.js';
 import {
-  textStyle, titleStyle, makeButton, makeRoundButton, addGardenBackground, addStars, showModal, makeVivid,
+  textStyle, titleStyle, makeGameLogo, makeButton, makeRoundButton, addGardenBackground, addStars, showModal, makeVivid,
   makeMuteButton, COLORS,
 } from '../ui/UI.js';
 import { panelTexture } from '../ui/Skin.js';
@@ -147,20 +147,12 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    // Each letter in its own bloom color, bobbing in a little wave.
-    const colors = ['#ff4f9a', '#ff9f1c', '#ffd23f', '#3ccf6e', '#2fb4ff', '#9b5cff'];
+    // Candy logo, each letter bobbing in a little wave.
     const size = Math.round(Phaser.Math.Clamp(Math.min(width * 0.13, height * 0.15), 52, 110));
-    const letters = GAME_TITLE.split('').map((ch, i) => this.add.text(0, 0, ch, textStyle(size, colors[i % colors.length], {
-      stroke: '#ffffff', strokeThickness: Math.round(size / 6), shadow: { offsetX: 0, offsetY: Math.round(size / 11), color: '#7a4a1e', blur: 0, fill: true, stroke: true },
-    })).setOrigin(0.5));
-    const overlap = size * 0.08;
-    const totalW = letters.reduce((sum, t) => sum + t.width - overlap, 0);
-    let lx = width * 0.5 - totalW / 2;
+    const { letters } = makeGameLogo(this, width * 0.5, height * 0.22, GAME_TITLE, size);
     letters.forEach((t, i) => {
-      t.setPosition(lx + (t.width - overlap) / 2, height * 0.22);
-      lx += t.width - overlap;
       this.tweens.add({
-        targets: t, y: t.y - 10, duration: 700, delay: i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+        targets: t, y: -10, duration: 700, delay: i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
       });
     });
 
