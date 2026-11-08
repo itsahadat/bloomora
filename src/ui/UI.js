@@ -147,8 +147,9 @@ export function makeAdButton(scene, {
           showTooltip(scene, m.tx, m.ty - 30 * m.scaleY, 'No ad right now', 'Ads are not available at the moment. Try again later!', { depth: 400, duration: 2400 });
         }
       }
-      // Used up today's ads for this spot: fade the button away.
-      if (!Ads.canShow(placement) && button.active) {
+      // Used up today's ads for this spot (or ads are off): fade the button away.
+      // A network still loading its next ad keeps the button.
+      if (Ads.exhausted(placement) && button.active) {
         button.disableInteractive();
         scene.tweens.add({ targets: button, alpha: 0, duration: 200, onComplete: () => button.setVisible(false) });
       }

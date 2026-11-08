@@ -4,5 +4,13 @@
   "webDir": "dist-android",
   "android": {
     "backgroundColor": "#dff1cc"
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": [
+        "google.com"
+      ]
+    }
   }
 }

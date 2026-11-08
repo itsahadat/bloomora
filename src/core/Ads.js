@@ -8,6 +8,7 @@ import { Store } from './Storage.js';
  *
  * The game only ever asks `Ads.canShow(placement)` and `await Ads.rewarded(placement)`;
  * which ad network answers depends on the build target (VITE_TARGET):
+ *  - Android app: AdMob (Google's test ads until real IDs are set).
  *  - CrazyGames build: the CrazyGames SDK (its test overlay on localhost).
  *  - Other dev builds, or any build opened with `?fakeads`: a test ad.
  *  - Anything else: no ads, so the ad buttons simply stay hidden.
@@ -143,8 +144,87 @@ const crazyAds = {
   },
 };
 
-// Real networks for other targets (H5 Games Ads, AdMob) plug in here.
+/**
+ * AdMob rewarded video for the Android app. Until real IDs are set (VITE_ADMOB_REWARDED_ID
+ * at build time), Google's public test ad unit is used: it always serves a "Test Ad".
+ * One ad is kept loaded in the background so the button can show it at once.
+ */
+const ADMOB_REWARDED_ID = import.meta.env.VITE_ADMOB_REWARDED_ID || 'ca-app-pub-3940256099942544/5224354917';
+
+const admobAds = {
+  name: 'admob',
+  mod: null,
+  loaded: false,
+  loading: false,
+
+  async init() {
+    const mod = await import('@capacitor-community/admob');
+    this.mod = mod;
+    await mod.AdMob.initialize({});
+    // EU/UK players must be asked for consent (Google's own form) before ads load.
+    try {
+      const info = await mod.AdMob.requestConsentInfo();
+      if (info.status === mod.AdmobConsentStatus.REQUIRED && info.isConsentFormAvailable) {
+        await mod.AdMob.showConsentForm();
+      }
+    } catch {
+      // Consent form not set up in AdMob yet: ads still load (non-personalised where required).
+    }
+    this.load();
+  },
+
+  async load() {
+    if (!this.mod || this.loading || this.loaded) return;
+    this.loading = true;
+    try {
+      await this.mod.AdMob.prepareRewardVideoAd({ adId: ADMOB_REWARDED_ID });
+      this.loaded = true;
+    } catch {
+      // No fill or offline: try again in a while.
+      setTimeout(() => this.load(), 30000);
+    } finally {
+      this.loading = false;
+    }
+  },
+
+  ready() {
+    return this.loaded;
+  },
+
+  rewarded() {
+    const { AdMob, RewardAdPluginEvents } = this.mod;
+    return new Promise((resolve) => {
+      let earned = false;
+      let done = false;
+      const handles = [];
+      const finish = (watched) => {
+        if (done) return;
+        done = true;
+        handles.forEach((h) => h.then((x) => x.remove()).catch(() => {}));
+        setSilenced('ad', false);
+        this.loaded = false;
+        this.load();
+        resolve(watched);
+      };
+      // The reward only counts once the player closes the ad after earning it.
+      handles.push(AdMob.addListener(RewardAdPluginEvents.Rewarded, () => { earned = true; }));
+      handles.push(AdMob.addListener(RewardAdPluginEvents.Dismissed, () => finish(earned)));
+      handles.push(AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => finish(false)));
+      setSilenced('ad', true);
+      AdMob.showRewardVideoAd().then(() => { earned = true; }).catch(() => finish(false));
+    });
+  },
+};
+
+/** Start the ad network for this build (the Android app's AdMob); others need nothing. */
+export function initAds() {
+  if (Platform.target !== 'android') return;
+  admobAds.init().catch((err) => console.warn('[Ads] AdMob unavailable', err));
+}
+
+// H5 Games Ads (own site) plugs in here later.
 function provider() {
+  if (Platform.target === 'android') return admobAds;
   if (Platform.target === 'crazygames' && Platform.crazy) return crazyAds;
   const forceFake = new URLSearchParams(window.location.search).has('fakeads');
   if (import.meta.env.DEV || forceFake) return fakeAds;
@@ -160,6 +240,15 @@ export const Ads = {
   left(placement) {
     const cap = AD_PLACEMENTS[placement]?.cap ?? 0;
     return Math.max(0, cap - (load().used[placement] ?? 0));
+  },
+
+  /**
+   * True when this placement is done for now: today's ads are used up, or ads are off for
+   * good this session (CrazyGames Basic Launch, ad blocker). A network that is merely still
+   * loading its next ad doesn't count.
+   */
+  exhausted(placement) {
+    return this.left(placement) <= 0 || provider().off === true || provider() === noAds;
   },
 
   /** True when an ad button for this placement should be shown. */

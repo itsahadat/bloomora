@@ -20,6 +20,7 @@ import { Streak } from '../core/Streak.js';
 import { Quests } from '../core/Quests.js';
 import { Store } from '../core/Storage.js';
 import { Platform } from '../core/Platform.js';
+import { CloudSave } from '../core/CloudSave.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -43,7 +44,9 @@ export class MenuScene extends Phaser.Scene {
   }
 
   openSettings() {
-    const modal = showModal(this, { title: 'Settings', color: 'yellow', width: 320, height: 396 });
+    // The Android app adds a cloud save row (Google sign-in).
+    const cloudRow = CloudSave.available ? 66 : 0;
+    const modal = showModal(this, { title: 'Settings', color: 'yellow', width: 320, height: 396 + cloudRow });
     const { panel, top } = modal;
     const musicLabel = () => (isMusicMuted() ? 'Music: Off' : 'Music: On');
     const music = makeButton(this, {
@@ -67,14 +70,14 @@ export class MenuScene extends Phaser.Scene {
       },
     });
     const credits = makeButton(this, {
-      x: 0, y: top + 182, width: 230, height: 52, label: 'Credits', color: 'blue', fontSize: 21,
+      x: 0, y: top + 182 + cloudRow, width: 230, height: 52, label: 'Credits', color: 'blue', fontSize: 21,
       onClick: () => {
         modal.close();
         this.openCredits();
       },
     });
     const reset = makeButton(this, {
-      x: 0, y: top + 248, width: 230, height: 52, label: 'Reset Progress', color: 'red', fontSize: 21,
+      x: 0, y: top + 248 + cloudRow, width: 230, height: 52, label: 'Reset Progress', color: 'red', fontSize: 21,
       onClick: () => {
         modal.close();
         this.confirmReset();
@@ -84,6 +87,55 @@ export class MenuScene extends Phaser.Scene {
       x: modal.width / 2 - 34, y: -modal.height / 2 + 34, size: 40, label: '✕', color: 'red', onClick: () => modal.close(),
     });
     panel.add([sound, music, credits, reset, close]);
+
+    if (cloudRow) {
+      const cloudLabel = () => (CloudSave.user ? 'Cloud Save: On' : 'Save with Google');
+      let busy = false;
+      const cloud = makeButton(this, {
+        x: 0, y: top + 182, width: 230, height: 52, label: cloudLabel(), color: CloudSave.user ? 'green' : 'blue', fontSize: 19,
+        onClick: async () => {
+          if (busy) return;
+          busy = true;
+          if (CloudSave.user) {
+            this.openCloudAccount(() => refresh());
+          } else {
+            cloud.label.setText('Signing in…');
+            await CloudSave.signIn();
+          }
+          busy = false;
+          refresh();
+        },
+      });
+      const refresh = () => {
+        if (!cloud.active) return;
+        cloud.label.setText(cloudLabel());
+        cloud.setColor(CloudSave.user ? 'green' : 'blue');
+      };
+      panel.add(cloud);
+    }
+  }
+
+  /** Signed-in player: who they are, and a way to sign out. */
+  openCloudAccount(onDone) {
+    const modal = showModal(this, { title: 'Cloud Save', color: 'green', width: 320, height: 300, depth: 140 });
+    const { panel, top } = modal;
+    const who = CloudSave.user?.displayName || CloudSave.user?.email || 'your Google account';
+    panel.add(this.add.text(0, top + 40, `Your progress is saved to\n${who}`, textStyle(16, '#7a4a1e', { align: 'center', wordWrap: { width: 260 } })).setOrigin(0.5));
+    panel.add(makeButton(this, {
+      x: 0, y: top + 116, width: 220, height: 50, label: 'Sign Out', color: 'red', fontSize: 20,
+      onClick: async () => {
+        await CloudSave.signOut();
+        modal.close();
+        onDone?.();
+      },
+    }));
+    panel.add(makeButton(this, {
+      x: 0, y: top + 178, width: 220, height: 50, label: 'OK', color: 'blue', fontSize: 20,
+      onClick: () => {
+        modal.close();
+        onDone?.();
+      },
+    }));
   }
 
   openCredits() {

@@ -5,6 +5,8 @@ import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { MapScene } from './scenes/MapScene.js';
 import { Platform, TARGET } from './core/Platform.js';
+import { initAds } from './core/Ads.js';
+import { CloudSave } from './core/CloudSave.js';
 
 function startGame() {
   return new Phaser.Game({
@@ -39,7 +41,12 @@ const fontsReady = document.fonts
   : Promise.resolve();
 
 // The platform SDK (if any) must be ready before the first save is read.
-const platformReady = Platform.init().then(() => Platform.loadingStart());
+const platformReady = Platform.init().then(() => {
+  Platform.loadingStart();
+  // Android app: AdMob and cloud save start in the background (both are no-ops elsewhere).
+  initAds();
+  CloudSave.init();
+});
 
 Promise.all([
   Promise.race([fontsReady, new Promise((resolve) => setTimeout(resolve, 1500))]).catch(() => {}),

@@ -5,6 +5,7 @@
  * The backend must offer localStorage's getItem / setItem / removeItem.
  */
 let backend = null;
+const listeners = new Set();
 
 function target() {
   return backend ?? window.localStorage;
@@ -22,8 +23,14 @@ export const Store = {
   },
   set(key, value) {
     target().setItem(key, value);
+    listeners.forEach((fn) => fn(key));
   },
   remove(key) {
     target().removeItem(key);
+    listeners.forEach((fn) => fn(key));
+  },
+  /** Run `fn(key)` after every save (cloud save uses it to know when to upload). */
+  onChange(fn) {
+    listeners.add(fn);
   },
 };
