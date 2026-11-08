@@ -120,7 +120,7 @@ export class MapScene extends Phaser.Scene {
     })).setOrigin(0.5);
 
     // Each garden has its own meadow tint, blending softly into the next one.
-    const tints = [0x9fd987, 0xc5d77e, 0x8fd3b0, 0xa8dc8a];
+    const tints = [0x9fd987, 0xc5d77e, 0x8fd3b0, 0xa8dc8a, 0xd2d49a, 0x86c48c, 0x9fd8c9, 0xd8da82, 0xb8d3dc];
     const zoneTop = (zi) => (ZONES[zi + 1] ? this.nodes[ZONES[zi + 1].start].y + NODE_GAP / 2 : skyH + 40);
     ZONES.forEach((zone, zi) => {
       const bottom = zi === 0 ? this.worldH : zoneTop(zi - 1);
@@ -167,7 +167,7 @@ export class MapScene extends Phaser.Scene {
     }
 
     // Flower patches: clusters of tiny blooms in each garden's own kinds.
-    const zoneFlowers = [['rose', 'sun', 'berry', 'crystal'], ['strawberry', 'carrot', 'mushroom', 'sun'], ['apple', 'lemon', 'grape', 'kiwi'], ['pineapple', 'banana', 'orange', 'watermelon']];
+    const zoneFlowers = [['rose', 'sun', 'berry', 'crystal'], ['strawberry', 'carrot', 'mushroom', 'sun'], ['apple', 'lemon', 'grape', 'kiwi'], ['pineapple', 'banana', 'orange', 'watermelon'], ['strawberry', 'berry', 'grape', 'blueberry'], ['mushroom', 'leaf', 'sun', 'drop'], ['crystal', 'rose', 'drop', 'leaf'], ['sun', 'carrot', 'leaf', 'berry'], ['rose', 'sun', 'crystal', 'grape']];
     for (let i = 0; i < Math.floor(this.worldH / 120); i += 1) {
       const cx = rng.between(30, W - 30);
       const cy = rng.between(skyH + 220, this.worldH - 40);
