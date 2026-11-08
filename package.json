@@ -10,12 +10,17 @@
     "deploy": "node scripts/deploy.mjs",
     "itch": "node scripts/portal.mjs itch",
     "crazygames": "node scripts/portal.mjs crazygames",
-    "dev:crazygames": "vite --mode crazygames --port 5174"
+    "dev:crazygames": "vite --mode crazygames --port 5174",
+    "android": "node scripts/android.mjs",
+    "android:run": "node scripts/android.mjs && npx cap run android"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "vite": "^8.2.2"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
     "phaser": "^3.90.0"
   }
 }

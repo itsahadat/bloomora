@@ -1,0 +1,8 @@
+{
+  "appId": "com.sahadat.bloomora",
+  "appName": "Bloomora",
+  "webDir": "dist-android",
+  "android": {
+    "backgroundColor": "#dff1cc"
+  }
+}
