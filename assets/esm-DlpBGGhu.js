@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./web-Ds4Lt_GW.js","./dist-B-fBiTU6.js"])))=>i.map(i=>d[i]);
+import{t as e}from"./index-GNMEvK-0.js";import{i as t}from"./dist-B-fBiTU6.js";var n=t(`InAppReview`,{web:()=>e(()=>import(`./web-Ds4Lt_GW.js`).then(e=>new e.InAppReviewWeb),__vite__mapDeps([0,1]),import.meta.url)});export{n as InAppReview};
