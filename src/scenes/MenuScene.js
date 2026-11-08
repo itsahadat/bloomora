@@ -159,8 +159,6 @@ export class MenuScene extends Phaser.Scene {
     // Short screens (800x450 portal frames, phones sideways) get a smaller card and Play button.
     const cs = Phaser.Math.Clamp(height / 700, 0.7, 1);
     const logoY = height * 0.22;
-    const taglineY = logoY + size * 0.72;
-    const cardY = Math.max(height * 0.52, taglineY + 24 + 80 * cs);
     const { letters } = makeGameLogo(this, width * 0.5, logoY, GAME_TITLE, size);
     letters.forEach((t, i) => {
       this.tweens.add({
@@ -168,10 +166,15 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const tagline = this.add.text(width * 0.5, taglineY, 'Bloom your garden with brilliant matches', titleStyle(20, '#2c861b'))
-      .setOrigin(0.5);
+    // Tagline on two lines, as big as the screen allows.
+    const tagSize = Math.round(Phaser.Math.Clamp(Math.min(width * 0.075, height * 0.045), 22, 34));
+    const tagline = this.add.text(width * 0.5, logoY + size * 0.6, 'Bloom your garden\nwith brilliant matches', titleStyle(tagSize, '#2c861b', {
+      align: 'center', lineSpacing: -Math.round(tagSize * 0.15),
+    })).setOrigin(0.5, 0);
     // Keep a margin on narrow phones instead of running edge to edge.
-    if (tagline.width > width - 48) tagline.setScale((width - 48) / tagline.width);
+    if (tagline.width > width - 40) tagline.setScale((width - 40) / tagline.width);
+    const taglineBottom = tagline.y + tagline.displayHeight;
+    const cardY = Math.max(height * 0.52, taglineBottom + 20 + 80 * cs);
 
     const index = Progress.currentLevelIndex(LEVELS.length);
     const level = LEVELS[index];

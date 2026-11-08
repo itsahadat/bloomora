@@ -402,9 +402,9 @@ export class Board {
     const { minR, minC, rows, cols } = this.playableBounds();
     const bw = cols * CELL + pad * 2;
     const bh = rows * CELL + pad * 2;
-    // A smaller board gets bigger tiles, but not more than 25% bigger than a full 8x8 board's.
+    // A smaller board gets bigger tiles, but not more than 40% bigger than a full 8x8 board's.
     const fullScale = Math.min(width / (COLS * CELL + pad * 2), height / (ROWS * CELL + pad * 2));
-    const s = Math.max(0.2, Math.min(width / bw, height / bh, fullScale * 1.25));
+    const s = Math.max(0.2, Math.min(width / bw, height / bh, fullScale * 1.4));
     this.scaleFactor = s;
 
     const vx = x + (width - bw * s) / 2 + pad * s;

@@ -302,12 +302,18 @@ export class GameScene extends Phaser.Scene {
       this.scoreCard.setPosition(W / 2, barTop + 20);
       this.layoutScoreBar(hudW - 40, 0);
 
+      // Tall phones have room to spare: bigger booster buttons (up to 25%).
+      const tall = Phaser.Math.Clamp((H / W - 1.75) / 0.5, 0, 1);
+      const bs = 1 + 0.25 * tall;
+      const barH = BOOSTER_BAR * bs;
       const kinds = Object.keys(this.boosterButtons);
-      this.boosterBar.setPosition(W / 2, H - PAD - BOOSTER_BAR / 2 + 6);
+      this.boosterBar.setScale(bs).setPosition(W / 2, H - PAD - barH / 2 + 6);
       kinds.forEach((k, i) => this.boosterButtons[k].setPosition((i - (kinds.length - 1) / 2) * 92, 0));
 
+      // The board may use (nearly) the full screen width on narrow phones.
+      const side = W < 520 ? 3 : PAD;
       const boardTop = barTop + 40 + 10;
-      this.boardRect = this.board.layout(PAD, boardTop, W - PAD * 2, H - boardTop - PAD - BOOSTER_BAR);
+      this.boardRect = this.board.layout(side, boardTop, W - side * 2, H - boardTop - PAD - barH);
     }
     this.scoreCard.label.setVisible(wide);
     this.boosterHint.setPosition(this.boardRect.x + this.boardRect.width / 2, this.boardRect.y + this.boardRect.height + 2);
