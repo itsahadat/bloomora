@@ -11,7 +11,7 @@ export const DAILY_REWARDS = [
   { coins: 300, lives: true },
 ];
 
-const dayNumber = (date = new Date()) => Math.floor((date.getTime() - date.getTimezoneOffset() * 60000) / 86400000);
+export const dayNumber = (date = new Date()) => Math.floor((date.getTime() - date.getTimezoneOffset() * 60000) / 86400000);
 
 let state = null;
 

@@ -152,6 +152,10 @@ export const SOUNDS = {
     tone({ f: 1050 * p, to: 640 * p, glide: 0.05, dur: 0.08, vol: 0.2 * v });
     tone({ f: 2100 * p, type: 'triangle', dur: 0.03, vol: 0.05 * v });
   },
+  // Lucky wheel peg passing the pointer: a tiny plastic "tick".
+  tick(p, v) {
+    tone({ f: 2400 * p, to: 1500 * p, glide: 0.02, dur: 0.03, vol: 0.07 * v, type: 'triangle' });
+  },
   // Picking up a bloom.
   select(p, v) {
     tone({ f: 1300 * p, to: 1750 * p, glide: 0.04, dur: 0.07, vol: 0.1 * v });

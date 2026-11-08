@@ -7,6 +7,7 @@ import { playSfx, playMusic } from '../core/Sound.js';
 import { Inventory, BOOSTERS } from '../core/Inventory.js';
 import { Wallet } from '../core/Wallet.js';
 import { Daily } from '../core/Daily.js';
+import { openLuckyWheel, makeWheelButton } from '../ui/LuckyWheel.js';
 import {
   makeCoinBadge, openShop, openDailyReward, openBuyBooster, LIVES_PRICE,
 } from '../ui/Shop.js';
@@ -418,6 +419,24 @@ export class MapScene extends Phaser.Scene {
       };
       this.time.addEvent({ delay: 500, loop: true, callback: hide });
     }
+
+    // Lucky Flower Wheel (bottom-right): a free spin every day.
+    const { width: SW, height: SH } = this.scale;
+    this.wheelButton = makeWheelButton(this, {
+      x: SW - 46, y: SH - 54, size: 70,
+      canTap: () => this.dragDistance <= 12,
+      onClick: () => this.showWheel(),
+    }).setScrollFactor(0, 0, true).setDepth(50);
+  }
+
+  showWheel() {
+    openLuckyWheel(this, {
+      coinTarget: () => {
+        const m = this.coinBadge.coin.getWorldTransformMatrix();
+        return { x: m.tx, y: m.ty };
+      },
+      onClose: () => this.wheelButton.refresh(),
+    });
   }
 
   setupScrolling() {
